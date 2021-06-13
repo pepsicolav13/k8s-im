@@ -2,29 +2,15 @@
 
 ## 고가용성 확보 - Pod 레벨
 
-### metrics server 설치
+### Metrics server 설치
 
 ```bash
-helm install metrics-server stable/metrics-server \
-    --version 2.11.1 \
-    --namespace ctrl
-# NAME: metrics-server
-# LAST DEPLOYED: Wed Jul  8 17:50:32 2020
-# NAMESPACE: ctrl
-# STATUS: deployed
-# REVISION: 1
-# NOTES:
-# The metric server has been deployed.
-# 
-# In a few minutes you should be able to list metrics using the following
-# command:
-# 
-#   kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes"
+# Already install by kubespray
+# helm install metrics-server bitnami/metrics-server
 
-# metrics-server가 정상적으로 올라오기까지 시간이 조금 걸립니다.
-kubectl get pod -nctrl
-# NAME                              READY   STATUS    RESTARTS   AGE
-# metrics-server-8555869558-k7gb6   0/1     Running   0          34s
+kubectl get pod -n kube-system
+# NAME                   READY   STATUS    RESTARTS   AGE
+# metrics-server-xxxxx   1/1     Running   0          2h
 ```
 
 ```bash
@@ -38,9 +24,10 @@ kubectl top pod
 
 # Node별 리소스 사용량을 확인합니다.
 kubectl top node
-# NAME      CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
-# master    57m          2%     1846Mi          46%
-# worker    43m          2%      970Mi          24%
+# NAME    CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+# node1   216m         12%    1905Mi          58%
+# node2   182m         10%    1979Mi          60%
+# node3   132m         6%     1745Mi          49%
 
 kubectl delete pod mynginx
 # pod/mynginx deleted
@@ -104,7 +91,6 @@ kubectl apply -f heavy-cal.yaml
 ```
 
 ### `hpa` 생성 - 선언형 명령
-
 
 ```yaml
 # hpa.yaml
@@ -255,10 +241,10 @@ kubectl taint nodes $NODE_NAME <KEY>=<VALUE>:<EFFECT>
 
 ```bash
 # project=A 라는 taint를 NoSchedule로 설정
-kubectl taint node worker project=A:NoSchedule
-# node/worker tainted
+kubectl taint node node1 project=A:NoSchedule
+# node/node1 tainted
 
-kubectl get node worker -oyaml | grep -A 4 taints
+kubectl get node node1 -oyaml | grep -A 4 taints
 #  taints:
 #  - effect: NoSchedule
 #    key: project
@@ -275,6 +261,8 @@ spec:
   containers:
   - name: nginx
     image: nginx
+  nodeSelector:
+    kubernetes.io/hostname: node1
 ```
 
 ```bash
@@ -282,8 +270,8 @@ kubectl apply -f no-tolerate.yaml
 # pod/no-tolerate created
 
 kubectl get pod -o wide
-# NAME         READY   STATUS    RESTARTS  AGE   IP        NODE    ...
-# no-tolerate  1/1     Running   0         3s    <none>    master  ... 
+# NAME            READY   STATUS    RESTARTS   AGE     IP             NODE   
+# no-tolerate     0/1     Pending   0          11s     <none>         <none> 
 ```
 
 ```yaml
@@ -301,6 +289,8 @@ spec:
     value: "A"
     operator: "Equal"
     effect: "NoSchedule"
+  nodeSelector:
+    kubernetes.io/hostname: node1
 ```
 
 ```bash
@@ -308,18 +298,18 @@ kubectl apply -f tolerate.yaml
 # pod/tolerate created
 
 kubectl get pod -o wide
-# NAME         READY   STATUS    RESTARTS   AGE    IP        NODE
-# no-tolerate  1/1     Running   0          1m     <none>    master
-# tolerate     1/1     Running   0          15s    <none>    worker
+# NAME            READY   STATUS       RESTARTS   AGE
+# no-tolerate     0/1     Pending      0          2m7s
+# tolerate        1/1     Running      0          5s
 ```
 
 ```bash
-# worker에 taint를 추가합니다.
+# node1에 taint를 추가합니다.
 # 이번에는 key만 존재하는 taint를 적용해 봅니다.
-kubectl taint node worker badsector=:NoSchedule
-# node/worker tainted
+kubectl taint node node1 badsector=:NoSchedule
+# node/node1 tainted
 
-kubectl get node worker -oyaml | grep -A 7 taints
+kubectl get node node1 -oyaml | grep -A 7 taints
 #  taints:
 #  - effect: NoSchedule
 #    key: project
@@ -345,6 +335,8 @@ spec:
     effect: "NoSchedule"
   - key: "badsector"
     operator: "Exists"
+  nodeSelector:
+    kubernetes.io/hostname: node1
 ```
  
 ```bash
@@ -352,23 +344,35 @@ kubectl apply -f badsector.yaml
 # pod/badsector created
 
 kubectl get pod -o wide
-# NAME         READY   STATUS    RESTARTS   AGE    IP         NODE
-# no-tolerate  1/1     Running   0          5m     <none>     master
-# tolerate     1/1     Running   0          2m     <none>     worker
-# badsector    1/1     Running   0          16s    <none>     worker
+# NAME         READY   STATUS    RESTARTS   AGE    IP              NODE
+# no-tolerate  0/1     Pending   0          2m7s   <none>          <none>
+# tolerate     1/1     Running   0          2m     10.233.90.8     node1
+# badsector    1/1     Running   0          16s    10.233.87.23    node1
 ```
 
 ```bash
 # project taint 제거
-kubectl taint node worker project-
+kubectl taint node node1 project-
 # badsector taint 제거
-kubectl taint node worker badsector-
+kubectl taint node node1 badsector-
+
+kubectl get pod -o wide
+# NAME         READY   STATUS              RESTARTS   AGE    IP              NODE
+# no-tolerate  0/1     ContainerCreating   0          2m7s   <none>          <none>
+# tolerate     1/1     Running             0          2m     10.233.90.8     node1
+# badsector    1/1     Running             0          16s    10.233.87.23    node1
 ```
+
+### Clean up
+
+```bash
+kubectl delete pod no-tolerate tolerate badsector
+```
+
 
 ## `Affinity & AntiAffinity`
 
 ### `NodeAffinity`
-
 
 ```yaml
 # node-affinity.yaml
@@ -392,12 +396,14 @@ spec:
 ```
 
 ```bash
+kubectl label node node3 disktype=ssd
+
 kubectl apply -f node-affinity.yaml
 # pod/node-affinity created
 
 kubectl get pods node-affinity -o wide
 # NAME           READY   STATUS    RESTARTS  AGE   IP          NODE   ..
-# node-affinity  1/1     Running   0         19s   10.42.0.8   master ..
+# node-affinity  1/1     Running   0         19s   10.42.0.8   node3  ..
 ```
 
 ### `PodAffinity`
@@ -438,9 +444,9 @@ kubectl apply -f pod-affinity.yaml
 # deployment.apps/pod-affinity created
 
 kubectl get pod -o wide
-# NAME              READY  STATUS    RESTARTS  AGE   IP           NODE
-# pod-affinity-xxx  1/1    Running   0         11m   10.42.0.165  worker
-# pod-affinity-xxx  1/1    Running   0         11m   10.42.0.166  worker
+# NAME              READY  STATUS    RESTARTS  AGE   IP             NODE
+# pod-affinity-xxx  1/1    Running   0         11m   10.42.0.165    node1
+# pod-affinity-xxx  1/1    Running   0         11m   10.42.0.166    node1
 ```
 
 ### `PodAntiAffinity`
@@ -482,8 +488,8 @@ kubectl apply -f pod-antiaffinity.yaml
 
 kubectl get pod -o wide
 # NAME                 READY  STATUS    RESTARTS AGE  IP           NODE
-# pod-antiaffinity-xxx 1/1    Running   0        10s  10.42.0.168  master
-# pod-antiaffinity-xxx 1/1    Running   0        11s  10.42.0.167  worker
+# pod-antiaffinity-xxx 1/1    Running   0        10s  10.42.0.168  node1
+# pod-antiaffinity-xxx 1/1    Running   0        11s  10.42.0.167  node2
 ```
 
 ### `PodAffinity`와 `PodAntiAffinity` 활용법
@@ -570,23 +576,21 @@ spec:
 ```
 
 ```bash
-kubectl apply -f redis-cache.yaml
+kubectl apply -f redis-cache.yaml -f web-server.yaml
 # deployment.app/redis-cache created
-
-kubectl apply -f web-server.yaml
 # deployment.app/web-server created
+
 
 kubectl get pod -owide
 # NAME             READY  STATUS    RESTARTS  AGE     IP            NODE
-# redis-cache-xxx  1/1    Running   0         10s     10.42.0.151   master
-# redis-cache-xxx  1/1    Running   0         10s     10.42.0.152   worker
-# web-server-xxxx  1/1    Running   0         11s     10.42.0.153   master
-# web-server-xxxx  1/1    Running   0         11s     10.42.0.154   worker
+# redis-cache-xxx  1/1    Running   0         10s     10.42.0.151   node3
+# redis-cache-xxx  1/1    Running   0         10s     10.42.0.152   node2
+# web-server-xxxx  1/1    Running   0         11s     10.42.0.153   node3
+# web-server-xxxx  1/1    Running   0         11s     10.42.0.154   node2
 ```
 
 ### Clean up
 
 ```bash
-kubectl delete deploy --all
-kubectl delete pod --all
+kubectl delete -f node-affinity.yaml -f pod-affinity.yaml -f pod-antiaffinity.yaml -f redis-cache.yaml -f web-server.yaml
 ```

@@ -3,26 +3,42 @@
 ### HTTP Authentication
 
 ```bash
-cat $HOME/.kube/config
+kubectl create sa mysa
+
+kubectl get sa mysa -oyaml
 # apiVersion: v1
-# clusters:
-# - cluster:
-#     certificate-authority-data: LS0tLS1CRUdJTiB...g==
-#     server: https://127.0.0.1:6443
-#   name: default
-# contexts:
-# - context:
-#     cluster: default
-#     user: default
-#   name: default
-# current-context: default
-# kind: Config
-# preferences: {}
-# users:
-# - name: default
-#   user:
-#     password: 7e92dba7..
-#     username: admin
+# kind: ServiceAccount
+# metadata:
+#   creationTimestamp: "2021-06-12T11:56:24Z"
+#   name: mysa
+#   namespace: default
+#   resourceVersion: "366"
+#   selfLink: /api/v1/namespaces/default/serviceaccounts/mysa
+#   uid: 26a257cc-8921-4e38-81a0-be5b2f47abe5
+# secrets:
+# - name: mysa-token-t5tgf
+
+kubectl get secret mysa-token-t5tgf -oyaml
+# apiVersion: v1
+# data:
+#   ca.crt: ..
+#   namespace: ...
+#   token: ...
+# kind: Secret
+# metadata:
+#   annotations:
+#     kubernetes.io/service-account.name: mysa
+#     kubernetes.io/service-account.uid: 26a257cc-8921-4e38-81a0-be5b2f47abe5
+#   creationTimestamp: "2021-06-12T11:56:24Z"
+#   name: mysa-token-t5tgf
+#   namespace: default
+#   resourceVersion: "365"
+#   selfLink: /api/v1/namespaces/default/secrets/mysa-token-t5tgf
+#   uid: 6b9f10bf-42cb-400a-b97d-0d64e1274054
+# type: kubernetes.io/service-account-token
+
+TOKEN=$(kubectl get secret $(kubectl get sa mysa -ojsonpath="{.secrets[0].name}") -ojsonpath="{.data.token}" | base64 -d)
+echo $TOKEN
 ```
 
 ```bash
@@ -42,7 +58,7 @@ curl -kv https://127.0.0.1:6443/api
 # }
 
 # basic auth 설정
-curl -kv -H "Authorization: Basic $(echo -n admin:7e92dba7.. | base64)" https://127.0.0.1:6443/api
+curl -kv -H "Authorization: Bearer $TOKEN" https://127.0.0.1:6443/api
 # HTTP/1.1 200 OK
 # {
 #   "kind": "APIVersions",
@@ -59,72 +75,17 @@ curl -kv -H "Authorization: Basic $(echo -n admin:7e92dba7.. | base64)" https://
 ```
 
 ```bash
-kubectl get pod -v 7
-# I0530 ...] Config loaded from file: /home/ubuntu/.kube/config
-# I0530 ...] GET https://127.0.0.1:6443/.../default/pods?limit=500
-# I0530 ...] Request Headers:
-# I0530 ...]     Accept: application/json;as=Table;v=v1;g=...
-# I0530 ...]     Authorization: Basic <masked>
-```
+kubectl config set-credentials bearer --token=$TOKEN
+kubectl config set-context kubernetes-admin@cluster.local --user=bearer
 
-```bash
-sudo vim /var/lib/rancher/k3s/server/cred/passwd
-```
 
-```bash
-# /var/lib/rancher/k3s/server/cred/passwd 
-
-# c8ae61726384c19726022879dea9dd66,node,node,k3s:agent
-# c8ae61726384c19726022879dea9dd66,server,server,k3s:server
-# fcb41891d94b1a362cf7ccc4086c2465,admin,admin,system:masters
-# mypassword,myuser,myuser,system:masters
-```
-
-```yaml
-# $HOME/.kube/config
-apiVersion: v1
-clusters:
-- cluster:
-    certificate-authority-data: LS0tLS1CRUdJTiB...g==
-    server: https://127.0.0.1:6443
-  name: default
-contexts:
-- context:
-    cluster: default
-    user: default
-  name: default
-current-context: default
-kind: Config
-preferences: {}
-users:
-- name: default
-  user:
-    password: mypassword   # 비밀번호 수정
-    username: myuser       # 계정이름 수정
-```
-
-```bash
-# 실험용 nginx Pod 생성
-kubectl run nginx --image nginx
-# error: You must be logged in to the server (Unauthorized)
-```
-
-```bash
-sudo systemctl restart k3s.service
-
-# 정상적으로 Pod가 생성됩니다.
-kubectl run nginx --image nginx
-# pod/nginx created
-
-# 조회도 가능합니다.
 kubectl get pod
-# NAME      READY   STATUS    RESTARTS   AGE
-# nginx     1/1     Running   0          5s
+# Error from server (Forbidden): pods is forbidden: User "system:serviceaccount:default:mysa" cannot list resource "pods" in API group "" in the namespace "default"
 
-# Pod 삭제도 가능합니다.
-kubectl delete pod nginx
-# pod/nginx deleted
+# 원복
+kubectl config set-context kubernetes-admin@cluster.local --user=kubernetes-admin
 ```
+
 
 ### X.509 인증서
 
@@ -173,8 +134,8 @@ EOF
 
 ```bash
 sudo cfssl gencert \
-  -ca=/var/lib/rancher/k3s/server/tls/client-ca.crt \
-  -ca-key=/var/lib/rancher/k3s/server/tls/client-ca.key \
+  -ca=/etc/kubernetes/ssl/ca.crt \
+  -ca-key=/etc/kubernetes/ssl/ca.key \
   -config=rootCA-config.json \
   -profile=root-ca \
   client-cert-csr.json | cfssljson -bare client-cert
@@ -187,7 +148,6 @@ ls -al
 # rootCA-config.json
 ```
 
-
 ```bash
 kubectl config set-credentials x509 \
           --client-certificate=client-cert.pem \
@@ -195,7 +155,7 @@ kubectl config set-credentials x509 \
           --embed-certs=true
 # User "x509" set.
 
-kubectl config set-context default --user=x509
+kubectl config set-context kubernetes-admin@cluster.local --user=x509
 # Context "default" modified.
 
 # client-certificate과 key가 base64로 인코딩되어 삽입되어 있습니다.
@@ -215,15 +175,12 @@ cat $HOME/.kube/config
 # kind: Config
 # preferences: {}
 # users:
-# - name: default
-#   user:
-#     password: mypassword
-#     username: myuser
 # - name: x509
 #   user:
 #     client-certificate-data: LS0tLS1CRUdJTiB...
 #     client-key-data: LS0tLS1CRUdJTiBSU0EgUFJ...
 ```
+
 
 ```bash
 # 생성
@@ -276,29 +233,20 @@ kubectl get role
 kubectl get serviceaccount  # 또는 sa
 # NAME      SECRETS   AGE
 # default   1         28h
+# mysa      1         28h
 
-kubectl get serviceaccount default -oyaml
+kubectl get serviceaccount mysa -oyaml
 # apiVersion: v1
 # kind: ServiceAccount
 # metadata:
 #   creationTimestamp: "2020-06-07T10:08:29Z"
-#   name: default
+#   name: mysa
 #   namespace: default
 #   resourceVersion: "292"
-#   selfLink: /api/v1/namespaces/default/serviceaccounts/default
+#   selfLink: /api/v1/namespaces/default/serviceaccounts/mysa
 #   uid: 0183509b-2e36-412d-b229-048f09b2afc1
 # secrets:
-# - name: default-token-vkrsk
-```
-
-```bash
-kubectl create sa mysa
-# serviceaccount/mysa created
-
-kubectl get sa
-# NAME      SECRETS   AGE
-# default   1         28h
-# mysa      1         10s
+# - name: mysa-token-vkrsk
 ```
 
 ### RoleBinding (ClusterRoleBinding)
@@ -326,6 +274,14 @@ kubectl apply -f read-pods.yaml
 kubectl get rolebinding
 # NAME        ROLE              AGE
 # read-pods   Role/pod-viewer   20s
+
+
+kubectl config set-context kubernetes-admin@cluster.local --user=bearer
+
+kubectl get pod
+
+# 원복
+kubectl config set-context kubernetes-admin@cluster.local --user=kubernetes-admin
 ```
 
 ```yaml
@@ -338,7 +294,6 @@ spec:
   containers:
   - image: nginx
     name: nginx
-  # mysa ServiceAccount 사용
   serviceAccountName: mysa
 ```
 
@@ -355,7 +310,7 @@ kubectl exec -it nginx-sa -- bash
 
 ```bash
 # kubectl 설치
-$root@nginx-sa:/# curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl \
+$ root@nginx-sa:/# curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl \
                  && chmod +x ./kubectl \
                  && mv ./kubectl /usr/local/bin
 
@@ -402,7 +357,6 @@ $root@nginx-sa:/# kubectl get svc
 # NAME           TYPE           CLUSTER-IP      ...   
 # kubernetes     ClusterIP      10.43.0.1       ...
 
-# Pod를 빠져나갑니다.
 $root@nginx-sa:/# exit
 ```
 
@@ -526,7 +480,7 @@ kubectl get pod -owide
 kubectl exec -it client -- bash
 
 # web Pod 호출
-$root@client:/# curl 10.42.0.169
+$root@client:/# curl 10.42.0.169  # web
 # <!DOCTYPE html>
 # <html>
 # <head>
@@ -534,7 +488,7 @@ $root@client:/# curl 10.42.0.169
 # ...
 
 # non-web Pod 호출
-$root@client:/# curl 10.42.0.170
+$root@client:/# curl 10.42.0.170  # non-web
 # curl: (7) Failed to connect to 10.42.0.170 port 80: Connection refused
 
 $root@client:/# exit
@@ -580,7 +534,7 @@ kubectl get pod -owide
 kubectl exec -it client -- bash
 
 # client에서 app 서버 호출
-$root@client:/# curl 10.42.0.172
+$root@client:/# curl 10.42.0.172    # app
 # curl: (7) Failed to connect to 10.42.0.172 port 80: Connection refused
 
 # client Pod 종료
@@ -621,6 +575,8 @@ metadata:
   namespace: dev
 spec:
   podSelector: {}
+  ingress:
+  - {}
   egress:
   - to:
     - podSelector: {}
@@ -707,8 +663,7 @@ spec:
 ### Clean up
 
 ```bash
-kubectl delete pod --all
+kubectl delete pod app client non-web web
 kubectl delete networkpolicy --all -A
-kubectl delete ns dmz
 kubectl delete ns dev
 ```

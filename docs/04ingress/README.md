@@ -325,7 +325,7 @@ metadata:
   name: http-issuer
 spec:
   acme:
-    email: __EMAIL__
+    email: mymail@gmail.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: issuer-key

@@ -25,16 +25,14 @@ kubectl apply -f hostpath-pv.yaml
 # persistentvolume/my-volume created
 
 kubectl get pv
-# NAME        CAPACITY  ACCESS MODES   RECLAIM POLICY                 
-# my-volume   1Gi       RWO            Retain           
-#
-#                   STATUS      CLAIM   STORAGECLASS   REASON   AGE
-#                   Available           manual                  12s
+# NAME        CAPACITY  ACCESS MODES   RECLAIM POLICY     STATUS      CLAIM   STORAGECLASS   REASON   AGE             
+# my-volume   1Gi       RWO            Retain             Available           manual                  12s                
 ```
 
 ### NFS PV
 
 ```yaml
+# nfs-pv.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -111,15 +109,13 @@ kubectl apply -f my-pvc.yaml
 
 # 앞에서 생성한 my-volume을 선점하였습니다.
 kubectl get pvc
-# NAME          STATUS   VOLUME      CAPACITY  ACCESS MODES    ... 
-# my-pvc        Bound    my-volume   1Gi       RWO             ...
+# NAME     STATUS   VOLUME      CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+# my-pvc   Bound    my-volume   1Gi        RWO            manual         3s
+
 
 kubectl get pv
-# NAME        CAPACITY  ACCESS MODES   RECLAIM POLICY   STATUS   
-# my-volume   1Gi       RWO            Retain           Bound    
-#
-#                 CLAIM              STORAGECLASS    REASON   AGE
-#                 default/my-pvc     manual                   11s
+# NAME        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM            STORAGECLASS   REASON   AGE
+# my-volume   1Gi        RWO            Retain           Bound    default/my-pvc   manual                  97s
 ```
 
 ```yaml
@@ -175,13 +171,10 @@ kubectl delete pv my-volume
 [https://github.com/rancher/local-path-provisioner](https://github.com/rancher/local-path-provisioner)
 
 ```bash
-# local-path라는 이름의 StorageClass
+# install
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
 kubectl get sc
-# NAME                  PROVISIONER             RECLAIMPOLICY   
-# local-path (default)  rancher.io/local-path   Delete          
-#
-#               VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-#               WaitForFirstConsumer   false                  20d
 
 kubectl get sc local-path -oyaml
 # apiVersion: storage.k8s.io/v1
@@ -219,11 +212,8 @@ kubectl apply -f my-pvc-sc.yaml
 # persistentvolumeclaim/my-pvc-sc created
 
 kubectl get pvc my-pvc-sc
-# NAME         STATUS    VOLUME     CAPACITY   ACCESS MODES   
-# my-pvc-sc    Pending                                        
-#
-#                                           STORAGECLASS   AGE
-#                                           local-path     11s
+# NAME         STATUS    VOLUME     CAPACITY   ACCESS MODES    STORAGECLASS   AGE
+# my-pvc-sc    Pending                                         local-path     11s
 ```
 
 ```yaml
@@ -252,22 +242,17 @@ kubectl apply -f use-pvc-sc.yaml
 
 # STATUS가 Bound로 변경
 kubectl get pvc my-pvc-sc
-# NAME         STATUS   VOLUME            CAPACITY  
-# my-pvc-sc    Bound    pvc-479cff32-xx   1Gi                 
-#
-#                                   ACCESS MODES   STORAGECLASS   AGE
-#                                   RWO            local-path     92s
+# NAME         STATUS   VOLUME            CAPACITY    ACCESS MODES   STORAGECLASS   AGE
+# my-pvc-sc    Bound    pvc-479cff32-xx   1Gi         RWO            local-path     92s        
 
-# 기존에 생성하지 않은 신규 volume이 생성된 것을 확인
+
 kubectl get pv
-# NAME              CAPACITY  ACCESS MODES   RECLAIM POLICY   STATUS   
-# pvc-479cff32-xx   1Gi       RWO            Delete           Bound    
-#
-#                     CLAIM                STORAGECLASS   REASON   AGE
-#                     default/my-pvc-sc    local-path              3m
+# NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM               STORAGECLASS   REASON   AGE
+# pvc-5beef658-xxxx   1Gi        RWO            Delete           Bound    default/my-pvc-sc   local-path              20s
 
-# pv 상세 정보 확인 (hostPath 등)
-kubectl get pv pvc-479cff32-xx -oyaml
+
+
+kubectl get pv pvc-5beef658-xxxx -oyaml
 # apiVersion: v1
 # kind: PersistentVolume
 # metadata:
@@ -294,47 +279,39 @@ kubectl get pv pvc-479cff32-xx -oyaml
 
 
 ```bash
-helm install nfs stable/nfs-server-provisioner \
-    --set persistence.enabled=true \
-    --set persistence.size=10Gi \
-    --version 1.1.1 \
-    --namespace ctrl
-# NAME: nfs
-# LAST DEPLOYED: Wed Jul  8 13:19:46 2020
-# NAMESPACE: ctrl
-# STATUS: deployed
-# REVISION: 1
-# TEST SUITE: None
-# NOTES:
-# ...
+git clone https://github.com/kubernetes-sigs/nfs-ganesha-server-and-external-provisioner.git
 
-# nfs-server-provisioner라는 Pod가 생성되어 있습니다.
-kubectl get pod -n ctrl
-# NAME                           READY   STATUS       RESTARTS   AGE
-# ...
-# nfs-nfs-server-provisioner-0   1/1     Running      0          4m
+cd nfs-ganesha-server-and-external-provisioner
 
-# 이것은 StatefulSet로 구성되어 있습니다.
-kubectl get statefulset  -n ctrl
-# NAME                         READY   AGE
-# nfs-nfs-server-provisioner   1/1     57s
+kubectl create -f deploy/kubernetes/deployment.yaml
+kubectl create -f deploy/kubernetes/rbac.yaml
+kubectl create -f deploy/kubernetes/class.yaml
+kubectl patch storageclass example-nfs -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+kubectl create clusterrolebinding nfs-admin --clusterrole cluster-admin --serviceaccount serviceaccount:default:nfs-provisioner
+
+# install nfs-util from kubespray
+ansible all -i inventory/mycluster/hosts.yaml -m ansible.builtin.shell --become --become-user=root  -a 'apt update && sudo apt install -y nfs-client'
+
+
+kubectl get pod
+# NAME                               READY   STATUS    RESTARTS   AGE
+# nfs-provisioner-78dc99f5b7-kf8hj   1/1     Running   0          2m15s
+
 
 # nfs-server-provisioner Service도 있습니다.
-kubectl get svc  -n ctrl
-# NAME                                  TYPE           CLUSTER-IP     ..
-# nginx-nginx-ingress-default-backend   ClusterIP      10.43.79.133   .. 
-# nginx-nginx-ingress-controller        LoadBalancer   10.43.182.174  ..  
-# nfs-nfs-server-provisioner            ClusterIP      10.43.248.122  ..  
+kubectl get svc
+# NAME              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)             AGE
+# kubernetes        ClusterIP   10.233.0.1     <none>        443/TCP             17h
+# nfs-provisioner   ClusterIP   10.233.16.80   <none>        2049/TCP,2049/...   3m22s
+
 
 # 새로운 nfs StorageClass 생성
 kubectl get sc
-# NAME                 PROVISIONER                                
-# local-path (default) rancher.io/local-path                      
-# nfs                  cluster.local/nfs-nfs-server-provisioner   
-#
-#       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-#       Delete          WaitForFirstConsumer   false                  20d
-#       Delete          Immediate              true                   10s
+# NAME          PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+# example-nfs   example.com/nfs         Delete          Immediate              false                  3m
+# local-path    rancher.io/local-path   Delete          WaitForFirstConsumer   false                  9m11s
+
 ```
 
 ```yaml
@@ -344,8 +321,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: nfs-sc
 spec:
-  # 기존 local-path에서 nfs로 변경
-  storageClassName: nfs
+  storageClassName: example-nfs
   # accessModes를 ReadWriteMany로 변경
   accessModes:
     - ReadWriteMany
@@ -366,13 +342,10 @@ kubectl get pvc
 
 # pv 리소스 확인
 kubectl get pv pvc-49fea9cf-xxx
-# NAME                CAPACITY   ACCESS MODES   RECLAIM  POLICY
-# pvc-49fea9cf-xxx    1Gi        RWX            Delete 
-#
-#                  STATUS    CLAIM            STORAGECLASS   REASON  AGE
-#                  Bound     default/nfs-sc   nfs                    5m
+# NAME                CAPACITY   ACCESS MODES   RECLAIM  POLICY   STATUS    CLAIM            STORAGECLASS   REASON  AGE
+# pvc-49fea9cf-xxx    1Gi        RWX            Delete            Bound     default/nfs-sc   nfs                    5m
 
-# pv 상세 정보 확인 (nfs 마운트 정보)
+
 kubectl get pv pvc-49fea9cf-xxx -oyaml
 # apiVersion: v1
 # kind: PersistentVolume
@@ -407,7 +380,7 @@ kubectl get pv pvc-49fea9cf-xxx -oyaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: use-nfs-sc-master
+  name: use-nfs-sc-node1
 spec:
   volumes:
   - name: vol
@@ -420,12 +393,12 @@ spec:
     - mountPath: "/usr/share/nginx/html"
       name: vol
   nodeSelector:
-    kubernetes.io/hostname: master
+    kubernetes.io/hostname: node1
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: use-nfs-sc-worker
+  name: use-nfs-sc-node2
 spec:
   volumes:
   - name: vol
@@ -438,63 +411,60 @@ spec:
     - mountPath: "/usr/share/nginx/html"
       name: vol
   nodeSelector:
-    kubernetes.io/hostname: worker
+    kubernetes.io/hostname: node2
 ```
 
 ```bash
 kubectl apply -f use-nfs-sc.yaml
-# pod/use-nfs-sc-master created
-# pod/use-nfs-sc-worker created
+# pod/use-nfs-sc-node1 created
+# pod/use-nfs-sc-node2 created
 
 kubectl get pod -o wide
 # NAME               READY  STATUS    RESTARTS  AGE   IP          NODE
 # ...
-# use-nfs-sc-master  1/1    Running   0         19s   10.42.0.8   master
-# use-nfs-sc-worker  1/1    Running   0         19s   10.42.0.52  worker
+# use-nfs-sc-node1  1/1    Running   0         19s   10.42.0.8   node1
+# use-nfs-sc-node2  1/1    Running   0         19s   10.42.0.52  node2
 ```
 
 ```bash
 # master Pod에 index.html 파일을 생성합니다.
-kubectl exec use-nfs-sc-master -- sh -c \
+kubectl exec use-nfs-sc-node1 -- sh -c \
       "echo 'hello world' >> /usr/share/nginx/html/index.html"
 
 # worker Pod에서 호출을 합니다.
-kubectl exec use-nfs-sc-worker -- curl -s localhost
+kubectl exec use-nfs-sc-node2 -- curl -s localhost
 # hello world
 ```
 
 ### Clean up
 
 ```bash
-kubectl delete pod user-nfs-sc-master
-kubectl delete pod user-nfs-sc-worker
+kubectl delete pod use-nfs-sc-node1
+kubectl delete pod use-nfs-sc-node2
+kubectl delete pod use-pvc-sc
 kubectl delete pvc nfs-sc
 ```
 
 ## 쿠버네티스 스토리지 활용
 
 ```bash
-# stable 레포지토리에 있는 minio chart를 다운로드 합니다.
-helm fetch --untar bitnami/minio --version 5.0.30
+helm fetch --untar bitnami/minio
 
-# vim 편집기를 실행합니다.
 vim minio/values.yaml
 ```
 
 ```yaml
 ...
-# 약 65번째 줄에서 accessKey와 secretKey 변경
-accessKey: "myaccess"
-secretKey: "mysecret"
+accessKey: 
+  password: "myaccesskey"
+secretKey: 
+  password: "mysecretkey"
 ...
-  # 약 111번째 줄에서 storageClass를 nfs로 변경
-  storageClass: "nfs"
-  # ReadWriteMany로 변경
+persistence:
+  storageClass: "example-nfs"
   accessMode: "ReadWriteMany"
-  # 2Gi로 변경
-  size: 2Gi    # 기존 500Gi
+  size: 2Gi
 
-# 약 149번째 줄에서 ingress 설정
 ingress:
   # false --> true
   enabled: true
@@ -504,15 +474,8 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: nginx
   path: /
-  # host 설정, 사용자별 공인IP 주소를 입력합니다.
   hosts:
     - minio.10.0.1.1.sslip.io
-  tls: []
-
-# 약 212번째 줄에서 requests 줄이기
-resources:
-  requests:
-    memory: 1Gi # 기존 4Gi
 ```
 
 ```bash
@@ -523,18 +486,12 @@ kubectl get pod
 # minio-7f58448457-vctrp    1/1     Running            0          2m
 
 kubectl get pvc
-# NAME     STATUS   VOLUME             CAPACITY   ACCESS MODES   
-# minio    Bound    pvc-cff81820-xxx   10Gi       RWO            
-# 
-#                                                 STORAGECLASS   AGE
-#                                                 nfs            2m40s
+# NAME     STATUS   VOLUME             CAPACITY   ACCESS MODES  STORAGECLASS    AGE
+# minio    Bound    pvc-cff81820-xxx   10Gi       RWO           example-nfs     2m40s
 
 kubectl get pv
-# NAME               CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   
-# pvc-cff81820-xxx   10Gi       RWO            Delete           Bound    
-#
-#                            CLAIM           STORAGECLASS   REASON   AGE
-#                            default/minio   nfs                     3m
+# NAME               CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS  CLAIM           STORAGECLASS   REASON   AGE 
+# pvc-cff81820-xxx   10Gi       RWO            Delete           Bound   default/minio   nfs                     3m
 ```
 
 ### Clean up

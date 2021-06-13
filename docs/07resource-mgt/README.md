@@ -72,17 +72,14 @@ spec:
 
 ```bash
 kubectl apply -f pod-exceed.yaml
-# Error from server (Forbidden): error when creating "STDIN": pods 
-# "pod-exceed" is forbidden: [maximum cpu usage per Container 
-# is 600m, but limit is 700m, maximum memory usage per Container 
-# is 600Mi, but limit is 700Mi]
+# Error from server (Forbidden): error when creating "pod-exceed.yaml": pods "pod-exceed" is forbidden: [maximum cpu usage per Container is 600m, but limit is 700m, maximum memory usage per Container is 600Mi, but limit is 700Mi]
 ```
 
 ### Clean up
 
 ```bash
 kubectl delete limitrange limit-range
-kubectl delete pod --all
+kubectl delete pod nginx-lr mynginx
 ```
 
 ### ResourceQuota
@@ -145,18 +142,14 @@ spec:
         cpu: "300m"
         memory: "300Mi"
 EOF
-# Error from server (Forbidden): error when creating "STDIN": 
-# pods "rq-2" is forbidden: exceeded quota: res-quota, 
-# requested: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, 
-# used: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, 
-# limited: limits.cpu=700m,limits
+# Error from server (Forbidden): error when creating "STDIN": pods "rq-2" is forbidden: exceeded quota: res-quota, requested: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, used: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, limited: limits.cpu=700m,limits.memory=800Mi,requests.cpu=500m
 ```
 
 ### Clean up
 
 ```bash
 kubectl delete resourcequota res-quota
-kubectl delete pod --all
+kubectl delete pod rq-1
 ```
 
 ## 노드 관리
@@ -169,37 +162,31 @@ kubectl cordon <NODE>
 
 ```bash
 # 먼저 worker의 상태를 확인합니다.
-kubectl get node worker -oyaml | grep spec -A 5
+kubectl get node node2 -oyaml | grep spec -A 5
 # spec:
 #   podCIDR: 10.42.0.0/24
 #   podCIDRs:
 #   - 10.42.0.0/24
-#   providerID: k3s://worker
 # status:
 
 # worker를 cordon시킵니다.
-kubectl cordon worker
-# node/worker cordoned
+kubectl cordon node2
+# node/node2 cordoned
 
-# 다시 worker의 상태를 확인합니다. taint가 설정된 것을 확인할 수 있고 unschedulable이 true로 설정되어 있습니다.
-kubectl get node worker -oyaml | grep spec -A 10
-# spec:
-#   podCIDR: 10.42.0.0/24
-#   podCIDRs:
-#   - 10.42.0.0/24
-#   providerID: k3s://worker
+kubectl get node node2 -oyaml | grep taints -A 5
 #   taints:
 #   - effect: NoSchedule
 #     key: node.kubernetes.io/unschedulable
-#     timeAdded: "2020-04-04T11:04:48Z"
+#     timeAdded: "2021-06-13T09:14:19Z"
 #   unschedulable: true
 # status:
 
 # worker의 상태를 확인합니다.
 kubectl get node
-# NAME     STATUS                    ROLES    AGE   VERSION
-# master   Ready                     master   32d   v1.18.6+k3s1
-# worker   Ready,SchedulingDisabled  worker   32d   v1.18.6+k3s1
+# NAME    STATUS                     ROLES    AGE   VERSION
+# node1   Ready                      master   21h   v1.19.9
+# node2   Ready,SchedulingDisabled   <none>   21h   v1.19.9
+# node3   Ready                      <none>   20h   v1.19.9
 ```
 
 ```bash
@@ -225,13 +212,15 @@ EOF
 ```
 
 ```bash
+# No Pod in node2
 kubectl get pod -o wide
-# NAME     READY   STATUS    RESTARTS   AGE    IP          NODE     ...
-# rs-xxxx  1/1     Running   0          3s     10.42.1.6   master   ...
-# rs-xxxx  1/1     Running   0          3s     10.42.1.7   master   ...
-# rs-xxxx  1/1     Running   0          3s     10.42.1.8   master   ...
-# rs-xxxx  1/1     Running   0          3s     10.42.1.9   master   ...
-# rs-xxxx  1/1     Running   0          3s     10.42.1.10  master   ...
+# NAME                               READY   STATUS              RESTARTS   AGE     IP             NODE    NOMINATED NODE   READINESS GATES
+# nfs-provisioner-78dc99f5b7-kf8hj   1/1     Running             0          3h45m   10.233.92.32   node3   <none>           <none>
+# rs-7p7n2                           0/1     ContainerCreating   0          6s      <none>         node1   <none>           <none>
+# rs-82jq6                           1/1     Running             0          6s      10.233.90.13   node1   <none>           <none>
+# rs-8prv8                           1/1     Running             0          6s      10.233.92.53   node3   <none>           <none>
+# rs-cs58q                           0/1     ContainerCreating   0          6s      <none>         node3   <none>           <none>
+# rs-wb597                           0/1     ContainerCreating   0          6s      <none>         node3   <none>           <none>
 ```
 
 ```bash
@@ -239,54 +228,55 @@ cat << EOF | kubectl apply -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pod-worker
+  name: pod-node2
 spec:
   containers:
   - image: nginx
     name: nginx
   nodeSelector:
-    kubernetes.io/hostname: worker
+    kubernetes.io/hostname: node2
 EOF
-# pod/pod-worker created
+# pod/pod-node2 created
 
 kubectl get pod -owide
-# NAME         READY  STATUS    RESTARTS   AGE     IP       NODE    ... 
+# NAME        READY  STATUS    RESTARTS   AGE     IP       NODE    ... 
 # ...
-# pod-worker   0/1    Pending   0          70s     <none>   <none>  ...
+# pod-node2   0/1    Pending   0          70s     <none>   <none>  ...
 ```
 
 ### Uncordon
 
 ```bash
-kubectl uncordon worker
-# node/worker uncordoned
+kubectl uncordon node2
+# node/node2 uncordoned
 
-# taint가 사라졌습니다.
-kubectl get node worker -oyaml | grep spec -A 10
+kubectl get node node2 -oyaml | grep spec -A 10
 # spec:
 #   podCIDR: 10.42.1.0/24
 #   podCIDRs:
 #   - 10.42.1.0/24
-#   providerID: k3s://worker
 # status:
 #   addresses:
 #   - address: 172.31.16.173
 #     type: InternalIP
-#   - address: worker
+#   - address: node2
 #     type: Hostname
 
 kubectl get node
-# NAME     STATUS   ROLES    AGE   VERSION
-# master   Ready    master   32d   v1.18.6+k3s1
-# worker   Ready    worker   32d   v1.18.6+k3s1
+# NAME    STATUS   ROLES    AGE   VERSION
+# node1   Ready    master   21h   v1.19.9
+# node2   Ready    <none>   21h   v1.19.9
+# node3   Ready    <none>   20h   v1.19.9
 
-kubectl get pod -owide
+
+kubectl get pod pod-node2 -owide
 # NAME        READY   STATUS    RESTARTS   AGE   IP       NODE     ...
-# ...
-# pod-worker  1/1     Running   0          70s   <none>   worker   ...
+# pod-node2   1/1     Running   0          70s   <none>   node2   ...
 
-kubectl delete pod pod-worker
-# pod/pod-worker deleted
+kubectl delete pod pod-node2
+# pod/pod-node2 deleted
+
+kubectl delete rs rs
 ```
 
 ### Drain
@@ -311,36 +301,27 @@ spec:
       - name: nginx
         image: nginx
 EOF
-# deployment.apps/pod-drain created
+# deployment.apps/nginx created
 
-# nginx Pod가 워커 노드에 생성된 것을 확인할 수 있습니다.
 kubectl get pod -o wide
 # NAME               READY  STATUS    RESTARTS  AGE  IP           NODE
-# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.0.25   master
-# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.1.2    worker
-# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.4.62   worker
+# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.0.25   node1
+# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.1.2    node2
+# nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.4.62   node3
 ```
 
 ```bash
 # 모든 노드에 존재하는 DaemonSet은 무시합니다.
-kubectl drain worker  --ignore-daemonsets
-# node/worker cordoned
-# evicting pod "nginx-xxx"
+kubectl drain node3  --ignore-daemonsets
+# node/node3 cordoned
 # evicting pod "nginx-xxx"
 # ...
 
 # nginx Pod가 어떻게 동작하는지 확인합니다.
-kubectl get pod -owide
-# NAME              READY   STATUS    RESTARTS  AGE  IP          NODE
-# nginx-7ff7b-xxx   1/1     Running   0         2m   10.42.0.25  master
-# nginx-7ff7b-xxx   1/1     Pending   0         2m   <none>      <none>
+watch kubectl get pod -owide
+
  
-kubectl get node worker -oyaml | grep spec -A 10
-# spec:
-#   podCIDR: 10.42.1.0/24
-#   podCIDRs:
-#   - 10.42.1.0/24
-#   providerID: k3s://worker
+kubectl get node node3 -oyaml | grep taints -A 5
 #   taints:
 #   - effect: NoSchedule
 #     key: node.kubernetes.io/unschedulable
@@ -349,64 +330,19 @@ kubectl get node worker -oyaml | grep spec -A 10
 # status:
 
 kubectl get node
-# NAME     STATUS                    ROLES    AGE   VERSION
-# master   Ready                     master   32d   v1.18.6+k3s1
-# worker   Ready,SchedulingDisabled  worker   32d   v1.18.6+k3s1
+# NAME    STATUS                     ROLES    AGE   VERSION
+# node1   Ready                      master   21h   v1.19.9
+# node2   Ready                      <none>   21h   v1.19.9
+# node3   Ready,SchedulingDisabled   <none>   20h   v1.19.9
 ```
 
 ```bash
-kubectl uncordon worker
-# node/worker uncordoned
-```
-
-## Pod 개수 유지
-
-```bash
-kubectl scale deploy nginx --replicas 10
-# deployment.apps/mydeploy scaled
-```
-
-```yaml
-# nginx-pdb.yaml
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: nginx-pdb
-spec:
-  minAvailable: 9
-  selector:
-    matchLabels:
-      app: nginx
-```
-
-```bash
-# pdb를 생성합니다.
-kubectl apply -f nginx-pdb.yaml
-# poddisruptionbudget/nginx-pdb created
-
-# worker을 drain합니다.
-kubectl drain worker --ignore-daemonsets
-# node/worker cordoned
-# evicting pod "nginx-xxx"
-# evicting pod "nginx-xxx"
-# error when evicting pod "mynginx-xxx" 
-# (will retry after 5s): Cannot evict pod as it would violate the 
-#   pod's disruption budget.
-# pod/mynginx-xxx evicted
-# evicting pod "mynginx-xxx"
-# error when evicting pod "mynginx-xxx" 
-# (will retry after 5s): Cannot evict pod as it would violate the 
-#   pod's disruption budget.
-# evicting pod "mynginx-xxx"
-# pod/mynginx-xxx evicted
-# node/worker evicted
+kubectl uncordon node3
+# node/node3 uncordoned
 ```
 
 ### Clean up
 
 ```bash
-kubectl delete pdb nginx-pdb
 kubectl delete deploy nginx
-kubectl delete rs rs
-kubectl uncordon worker
 ```
