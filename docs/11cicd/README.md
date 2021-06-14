@@ -20,6 +20,26 @@ docker push $USERNAME/$PROJECT
 ```
 
 
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>My Nginx</title>
+  </head>
+  <body>
+    <h2>Hello from Nginx container</h2>
+  </body>
+</html>
+```
+
+```Dockerfile
+# Dockerfile
+FROM nginx:latest
+COPY ./index.html /usr/share/nginx/html/index.html
+```
+
 ```yaml
 # .github/workflows/main.yml
 name: kubernetes CI/CD
@@ -34,10 +54,10 @@ jobs:
       uses: actions/checkout@main
 
     - name: Build the Docker image
-      run: docker build . -t $GITHUB_ACTOR/app:$GITHUB_RUN_NUMBER
+      run: docker build . -t $GITHUB_ACTOR/nginx:$GITHUB_RUN_NUMBER
 
     - name: Test image
-      run: docker run --entrypoint /test $GITHUB_ACTOR/app:$GITHUB_RUN_NUMBER
+      run: echo "Run image test!"
 
     - name: login
       run: docker login -u $GITHUB_ACTOR -p $PASSWORD
@@ -45,11 +65,9 @@ jobs:
         PASSWORD: ${{ secrets.PASSWORD }}
 
     - name: push
-      run: docker push $GITHUB_ACTOR/app:$GITHUB_RUN_NUMBER
-
-    - name: change gitops config
-      run:
+      run: docker push $GITHUB_ACTOR/nginx:$GITHUB_RUN_NUMBER
 ```
+
 
 ## GitOps를 이용한 CD
 
@@ -101,19 +119,50 @@ kubectl apply -f argocd-ingress.yaml
 ```
 
 ```bash
-kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server \
-    -o name | cut -d'/' -f 2
-# argocd-server-6766455855-pzdrv    --> 비밀번호
+# admin 비밀번호
+ubuntu@node1:~$ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+# XfENXjpXlyoJXGzT
 ```
 
 #### ArgoCD 배포
 
-마찬가지로 앞에서 배포한 `gitops-get-started` 레포지토리를 ArgoCD에서도 원천으로 사용해 봅시다.
+```yaml
+# manifest.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mynginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      run: mynginx
+  template:
+    metadata:
+      labels:
+        run: mynginx
+    spec:
+      containers:
+      - image: <DOCKER_HUB_IMAGE>
+        name: mynginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mynginx
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    run: mynginx
+```
 
 - `Application Name`: gitops-get-started
 - `Project`: default
 - `Sync Policy`: Manual
-- `Repository URL`: ` `
+- `Repository URL`: `<GITHUB REPOSITORY>`
 - `Revision`: HEAD
 - `Path`: .
 - `Cluster`: in-cluster
