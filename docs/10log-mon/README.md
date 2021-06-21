@@ -1,6 +1,5 @@
 # 09장 로깅 & 모니터링
 
-https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-quickstart.html
 
 ### 클러스터 레벨 로깅 원리
 
@@ -36,7 +35,10 @@ docker stop 4373b7e095215c23057b1dc4423527239e56a33dbd
 docker rm 4373b7e095215c23057b1dc4423527239e56a33dbd
 ```
 
-### ELK Stack
+### Elastic Stack
+
+[Elastic Cloud K8s](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-quickstart.html)
+
 
 ```bash
 kubectl apply -f https://download.elastic.co/downloads/eck/1.6.0/all-in-one.yaml

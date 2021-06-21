@@ -20,9 +20,10 @@ nav:
     - 06 고급 스케줄링: 06scheduling/README.md
     - 07 리소스 관리: 07resource-mgt/README.md
     - 08 접근제어: 08access-control/README.md
-    - 09 로깅 & 모니터링: 09log-mon/README.md
-    - 10 CI / CD: 10cicd/README.md
-    - 11 워크플로우 관리: 11workflow/README.md
+    - 09 사용자정의 리소스: 09crd/README.md
+    - 10 로깅 & 모니터링: 10log-mon/README.md
+    - 11 CI / CD: 11cicd/README.md
+    - 12 워크플로우 관리: 12workflow/README.md
 
 
     

@@ -1,6 +1,6 @@
 # 02장 Kubespray
 
-## kubespray Setup 하기
+## kubespray setup 하기
 
 kubespray: [https://github.com/kubernetes-sigs/kubespray](https://github.com/kubernetes-sigs/kubespray)
 
@@ -39,19 +39,19 @@ scp ~/.ssh/id_rsa.pub $WORKER2:~/.ssh/authorized_keys2
 ansible all -i inventory/mycluster/hosts.yaml  -m ping
 ```
 
-## kubespray Configuration
+## kubespray configuration
 
 `inventory/mycluster/group_vars/`
 
-	- `all/all.yml`: control plane 관련 설정값
-	- `all/docker.yml`: 도커 설정값
-	- `k8s_cluster/k8s-cluster.yml`: 클러스터 전반 (버전, 네트워크, authN, 시스템 리소스 사용량)
-	- `k8s_cluster/k8s-net-calico.yml`: 네트워크 설정 (Pod, Service cidr, NAT)
-	- `k8s_cluster/addons.yml`: 필수 컴포넌트는 아니나 자주 사용하는 컴포넌트 리스트
+- `all/all.yml`: control plane 관련 설정값
+- `all/docker.yml`: 도커 설정값
+- `k8s_cluster/k8s-cluster.yml`: 클러스터 전반 (버전, 네트워크, authN, 시스템 리소스 사용량)
+- `k8s_cluster/k8s-net-calico.yml`: 네트워크 설정 (Pod, Service cidr, NAT)
+- `k8s_cluster/addons.yml`: 필수 컴포넌트는 아니나 자주 사용하는 컴포넌트 리스트
 
 
 - `inventory/mycluster/group_vars/k8s-cluster/addons.yml`
-	- `metrics_server_enabled: false` --> `true`
+    - `metrics_server_enabled: false` --> `true`
 
 ## Cluster Deploy
 

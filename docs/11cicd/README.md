@@ -2,6 +2,7 @@
 
 ## CI 파이프라인 (Github Action)
 
+- CI
 
 ```bash
 # checkout
@@ -19,6 +20,7 @@ docker login --username $USERNAME --password $PASSWORD
 docker push $USERNAME/$PROJECT
 ```
 
+- index.html
 
 ```html
 <!-- index.html -->
@@ -34,11 +36,15 @@ docker push $USERNAME/$PROJECT
 </html>
 ```
 
+- Dockerfile
+
 ```Dockerfile
 # Dockerfile
 FROM nginx:latest
 COPY ./index.html /usr/share/nginx/html/index.html
 ```
+
+- CI Pipeline
 
 ```yaml
 # .github/workflows/main.yml
@@ -126,6 +132,8 @@ ubuntu@node1:~$ kubectl -n argocd get secret argocd-initial-admin-secret -o json
 
 #### ArgoCD 배포
 
+- manifest.yaml
+
 ```yaml
 # manifest.yaml
 apiVersion: apps/v1
@@ -190,6 +198,8 @@ sudo install skaffold /usr/local/bin/
 
 ### skaffold 세팅
 
+- app.py
+
 ```python
 # app.py
 from flask import Flask
@@ -204,7 +214,7 @@ if __name__ == '__main__':
     app.run()
 ```
 
-- 도커파일
+- Dockerfile
 
 ```Dockerfile
 # Dockerfile
@@ -311,6 +321,8 @@ kubectl delete pod skaffold-flask
 skaffold dev
 ```
 
+새로운 터미널에서 소스코드 수정
+
 ```python
 from flask import Flask
 app = Flask(__name__)
@@ -339,3 +351,4 @@ skaffold dev
 # [skaffold-flask flask]  * Running on http://127.0.0.1:5000/ 
 #                                  (Press CTRL+C to quit)
 ```
+
