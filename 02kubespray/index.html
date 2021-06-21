@@ -90,11 +90,7 @@ Theme by GitBook
 <h1 id="02-kubespray">02장 Kubespray<a class="headerlink" href="#02-kubespray" title="Permanent link">&para;</a></h1>
 <h2 id="kubespray-setup">kubespray setup 하기<a class="headerlink" href="#kubespray-setup" title="Permanent link">&para;</a></h2>
 <p>kubespray: <a href="https://github.com/kubernetes-sigs/kubespray">https://github.com/kubernetes-sigs/kubespray</a></p>
-<div class="highlight"><pre><span></span><code><span class="nv">MASTER</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
-<span class="nv">WORKER1</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
-<span class="nv">WORKER2</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
-
-git clone https://github.com/kubernetes-sigs/kubespray.git -b v2.15.1
+<div class="highlight"><pre><span></span><code>git clone https://github.com/kubernetes-sigs/kubespray.git -b v2.15.1
 <span class="nb">cd</span> kubespray
 
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -106,6 +102,11 @@ pip install -r requirements.txt
 
 <span class="c1"># Copy ``inventory/sample`` as ``inventory/mycluster``</span>
 cp -rfp inventory/sample inventory/mycluster
+
+<span class="c1"># IP setting</span>
+<span class="nv">MASTER</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
+<span class="nv">WORKER1</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
+<span class="nv">WORKER2</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
 
 <span class="c1"># Update Ansible inventory file with inventory builder</span>
 <span class="nb">declare</span> -a <span class="nv">IPS</span><span class="o">=(</span><span class="nv">$MASTER</span> <span class="nv">$WORKER1</span> <span class="nv">$WORKER2</span><span class="o">)</span>
