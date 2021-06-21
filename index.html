@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>쿠버네티스 중급 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="./images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="./css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href="." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="_1">쿠버네티스 중급<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<h2 id="_2">대상<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<ul>
+<li>클라우드 네이티브 기술에 관심이 많으신 분</li>
+<li>효율적인 운영 환경을 고민하시는 분</li>
+<li>쿠버네티스를 이용하여 DevOps를 수행하려 하시는 분</li>
+</ul>
+<h2 id="_3">실습환경<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>서버: 최소 3대 (master, worker 2)</li>
+<li>OS: ubuntu 20.04</li>
+<li>root user (sudo)</li>
+<li>CPU 2 core / MEM 4G / Disk 50G</li>
+<li>Public IP 필수 (EC2 / GCE / Azure VM)</li>
+</ul>
+<h2 id="_4">사전지식<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<ul>
+<li>쿠버네티스 &amp; 컨테이너 기본 지식</li>
+<li>리눅스 기본 지식이 필요합니다. (ssh, vim, apt, curl 등)</li>
+<li>간단한 프로그래밍 지식을 요구합니다. 언어는 무관하지만 이 책에서는 파이썬을 주로 다룹니다. 파이썬을 모르시더라도 전반적인 프로그래밍 지식만으로도 충분히 이해할 수 있습니다.</li>
+<li>간단한 클라우드 지식이 필요합니다.</li>
+<li><code>tmux</code>, <code>screen</code>과 같은 터미널 멀티플랙서를 사용하면 편리합니다.</li>
+</ul>
+<h2 id="_5">사전지식 확인 질문<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>도커 이미지를 생성 및 사용할 수 있는가?</li>
+<li>kubectl를 이용하여 nginx Pod, Service를 생성할 수 있는가?</li>
+<li>다음과 같은 Pod Spec에 대해서 이해하고 있는가?</li>
+<li>configMap, secret 연결</li>
+<li>liveness, readiness Prob</li>
+<li>volumeMount</li>
+<li>resource control (limit, request)</li>
+<li>Deployment를 이용하여 새로운 Pod를 rollout할 수 있는가?</li>
+</ul>
+<h2 id="_6">학습 순서<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="01overview/">Overview</a></li>
+<li><a href="02kubespray/">Kubespray</a></li>
+<li><a href="03helm/">Helm 패키지 매니저</a></li>
+<li><a href="04ingress/">Ingress</a></li>
+<li><a href="05storage/">스토리지</a></li>
+<li><a href="06scheduling/">고급 스케줄링</a></li>
+<li><a href="07resource-mgt/">리소스 관리</a></li>
+<li><a href="08access-control/">접근제어</a></li>
+<li><a href="09crd/">사용자 정의 리소스</a></li>
+<li><a href="10log-mon/">로깅 &amp; 모니터링</a></li>
+<li><a href="11cicd/">CI / CD</a></li>
+<li><a href="12workflow/">워크플로우 관리</a></li>
+</ol>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="./js/main.js"></script>
+<script src="./js/gitbook.min.js"></script>
+<script src="./js/theme.min.js"></script>
+</body>
+</html>

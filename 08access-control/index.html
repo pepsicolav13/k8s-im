@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>08 접근제어 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter active" data-path="08access-control/">
+<a href="./">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="08">08장 접근제어<a class="headerlink" href="#08" title="Permanent link">&para;</a></h1>
+<h3 id="http-authentication">HTTP Authentication<a class="headerlink" href="#http-authentication" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl create sa mysa
+
+kubectl get sa mysa -oyaml
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># kind: ServiceAccount</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   creationTimestamp: &quot;2021-06-12T11:56:24Z&quot;</span>
+<span class="c1">#   name: mysa</span>
+<span class="c1">#   namespace: default</span>
+<span class="c1">#   resourceVersion: &quot;366&quot;</span>
+<span class="c1">#   selfLink: /api/v1/namespaces/default/serviceaccounts/mysa</span>
+<span class="c1">#   uid: 26a257cc-8921-4e38-81a0-be5b2f47abe5</span>
+<span class="c1"># secrets:</span>
+<span class="c1"># - name: mysa-token-t5tgf</span>
+
+kubectl get secret mysa-token-t5tgf -oyaml
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># data:</span>
+<span class="c1">#   ca.crt: ..</span>
+<span class="c1">#   namespace: ...</span>
+<span class="c1">#   token: ...</span>
+<span class="c1"># kind: Secret</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   annotations:</span>
+<span class="c1">#     kubernetes.io/service-account.name: mysa</span>
+<span class="c1">#     kubernetes.io/service-account.uid: 26a257cc-8921-4e38-81a0-be5b2f47abe5</span>
+<span class="c1">#   creationTimestamp: &quot;2021-06-12T11:56:24Z&quot;</span>
+<span class="c1">#   name: mysa-token-t5tgf</span>
+<span class="c1">#   namespace: default</span>
+<span class="c1">#   resourceVersion: &quot;365&quot;</span>
+<span class="c1">#   selfLink: /api/v1/namespaces/default/secrets/mysa-token-t5tgf</span>
+<span class="c1">#   uid: 6b9f10bf-42cb-400a-b97d-0d64e1274054</span>
+<span class="c1"># type: kubernetes.io/service-account-token</span>
+
+<span class="nv">TOKEN</span><span class="o">=</span><span class="k">$(</span>kubectl get secret <span class="k">$(</span>kubectl get sa mysa -ojsonpath<span class="o">=</span><span class="s2">&quot;{.secrets[0].name}&quot;</span><span class="k">)</span> -ojsonpath<span class="o">=</span><span class="s2">&quot;{.data.token}&quot;</span> <span class="p">|</span> base64 -d<span class="k">)</span>
+<span class="nb">echo</span> <span class="nv">$TOKEN</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 헤더 없이 접속</span>
+curl -kv https://127.0.0.1:6443/api
+<span class="c1"># HTTP/1.1 401 Unauthorized</span>
+<span class="c1"># Www-Authenticate: Basic realm=&quot;kubernetes-master&quot;</span>
+<span class="c1"># {</span>
+<span class="c1">#   &quot;kind&quot;: &quot;Status&quot;,</span>
+<span class="c1">#   &quot;apiVersion&quot;: &quot;v1&quot;,</span>
+<span class="c1">#   &quot;metadata&quot;: {</span>
+<span class="c1">#   },</span>
+<span class="c1">#   &quot;status&quot;: &quot;Failure&quot;,</span>
+<span class="c1">#   &quot;message&quot;: &quot;Unauthorized&quot;,</span>
+<span class="c1">#   &quot;reason&quot;: &quot;Unauthorized&quot;,</span>
+<span class="c1">#   &quot;code&quot;: 401</span>
+<span class="c1"># }</span>
+
+<span class="c1"># basic auth 설정</span>
+curl -kv -H <span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span> https://127.0.0.1:6443/api
+<span class="c1"># HTTP/1.1 200 OK</span>
+<span class="c1"># {</span>
+<span class="c1">#   &quot;kind&quot;: &quot;APIVersions&quot;,</span>
+<span class="c1">#   &quot;versions&quot;: [</span>
+<span class="c1">#     &quot;v1&quot;</span>
+<span class="c1">#   ],</span>
+<span class="c1">#   &quot;serverAddressByClientCIDRs&quot;: [</span>
+<span class="c1">#     {</span>
+<span class="c1">#       &quot;clientCIDR&quot;: &quot;0.0.0.0/0&quot;,</span>
+<span class="c1">#       &quot;serverAddress&quot;: &quot;172.31.17.32:6443&quot;</span>
+<span class="c1">#     }</span>
+<span class="c1">#   ]</span>
+<span class="c1"># }</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl config set-credentials bearer --token<span class="o">=</span><span class="nv">$TOKEN</span>
+kubectl config set-context kubernetes-admin@cluster.local --user<span class="o">=</span>bearer
+
+
+kubectl get pod
+<span class="c1"># Error from server (Forbidden): pods is forbidden: User &quot;system:serviceaccount:default:mysa&quot; cannot list resource &quot;pods&quot; in API group &quot;&quot; in the namespace &quot;default&quot;</span>
+
+<span class="c1"># 원복</span>
+kubectl config set-context kubernetes-admin@cluster.local --user<span class="o">=</span>kubernetes-admin
+</code></pre></div>
+<h3 id="x509">X.509 인증서<a class="headerlink" href="#x509" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>wget -q --show-progress --https-only --timestamping <span class="se">\</span>
+  https://storage.googleapis.com/kubernetes-the-hard-way/cfssl/linux/cfssl <span class="se">\</span>
+  https://storage.googleapis.com/kubernetes-the-hard-way/cfssl/linux/cfssljson
+
+chmod +x cfssl cfssljson
+sudo mv cfssl cfssljson /usr/local/bin/
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 사용자 CSR 파일 생성</span>
+cat &gt; client-cert-csr.json <span class="s">&lt;&lt;EOF</span>
+<span class="s">{</span>
+<span class="s">  &quot;CN&quot;: &quot;client-cert&quot;,</span>
+<span class="s">  &quot;key&quot;: {</span>
+<span class="s">    &quot;algo&quot;: &quot;rsa&quot;,</span>
+<span class="s">    &quot;size&quot;: 2048</span>
+<span class="s">  },</span>
+<span class="s">  &quot;names&quot;: [</span>
+<span class="s">    {</span>
+<span class="s">      &quot;O&quot;: &quot;system:masters&quot;</span>
+<span class="s">    }</span>
+<span class="s">  ]</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>cat &gt; rootCA-config.json <span class="s">&lt;&lt;EOF</span>
+<span class="s">{</span>
+<span class="s">  &quot;signing&quot;: {</span>
+<span class="s">    &quot;profiles&quot;: {</span>
+<span class="s">      &quot;root-ca&quot;: {</span>
+<span class="s">        &quot;usages&quot;: [&quot;signing&quot;, &quot;key encipherment&quot;, &quot;client auth&quot;],</span>
+<span class="s">        &quot;expiry&quot;: &quot;8760h&quot;</span>
+<span class="s">      }</span>
+<span class="s">    }</span>
+<span class="s">  }</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>sudo cfssl gencert <span class="se">\</span>
+  -ca<span class="o">=</span>/etc/kubernetes/ssl/ca.crt <span class="se">\</span>
+  -ca-key<span class="o">=</span>/etc/kubernetes/ssl/ca.key <span class="se">\</span>
+  -config<span class="o">=</span>rootCA-config.json <span class="se">\</span>
+  -profile<span class="o">=</span>root-ca <span class="se">\</span>
+  client-cert-csr.json <span class="p">|</span> cfssljson -bare client-cert
+
+ls -al
+<span class="c1"># client-cert-csr.json</span>
+<span class="c1"># client-cert-key.pem</span>
+<span class="c1"># client-cert.csr</span>
+<span class="c1"># client-cert.pem</span>
+<span class="c1"># rootCA-config.json</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl config set-credentials x509 <span class="se">\</span>
+          --client-certificate<span class="o">=</span>client-cert.pem <span class="se">\</span>
+          --client-key<span class="o">=</span>client-cert-key.pem <span class="se">\</span>
+          --embed-certs<span class="o">=</span><span class="nb">true</span>
+<span class="c1"># User &quot;x509&quot; set.</span>
+
+kubectl config set-context kubernetes-admin@cluster.local --user<span class="o">=</span>x509
+<span class="c1"># Context &quot;default&quot; modified.</span>
+
+<span class="c1"># client-certificate과 key가 base64로 인코딩되어 삽입되어 있습니다.</span>
+cat <span class="nv">$HOME</span>/.kube/config
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># clusters:</span>
+<span class="c1"># - cluster:</span>
+<span class="c1">#     certificate-authority-data: LS0tLS1CRUdJTiB...g==</span>
+<span class="c1">#     server: https://127.0.0.1:6443</span>
+<span class="c1">#   name: default</span>
+<span class="c1"># contexts:</span>
+<span class="c1"># - context:</span>
+<span class="c1">#     cluster: default</span>
+<span class="c1">#     user: x509</span>
+<span class="c1">#   name: default</span>
+<span class="c1"># current-context: default</span>
+<span class="c1"># kind: Config</span>
+<span class="c1"># preferences: {}</span>
+<span class="c1"># users:</span>
+<span class="c1"># - name: x509</span>
+<span class="c1">#   user:</span>
+<span class="c1">#     client-certificate-data: LS0tLS1CRUdJTiB...</span>
+<span class="c1">#     client-key-data: LS0tLS1CRUdJTiBSU0EgUFJ...</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 생성</span>
+kubectl run nginx --image nginx
+<span class="c1"># pod/nginx created</span>
+
+<span class="c1"># 조회</span>
+kubectl get pod
+<span class="c1"># NAME     READY   STATUS    RESTARTS   AGE</span>
+<span class="c1"># nginx    1/1     Running   0          5s</span>
+
+<span class="c1"># 삭제</span>
+kubectl delete pod nginx
+<span class="c1"># pod/nginx deleted</span>
+</code></pre></div>
+<h2 id="rbac">역할 기반 접근 제어 (RBAC)<a class="headerlink" href="#rbac" title="Permanent link">&para;</a></h2>
+<h3 id="role-clusterrole">Role (ClusterRole)<a class="headerlink" href="#role-clusterrole" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># role.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Role</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">pod-viewer</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">rules</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">apiGroups</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;&quot;</span><span class="p p-Indicator">]</span> <span class="c1"># &quot;&quot;은 core API group을 나타냅니다.</span>
+  <span class="nt">resources</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">pods</span>
+  <span class="nt">verbs</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">get</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">watch</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">list</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f role.yaml
+<span class="c1"># role.rbac.authorization.k8s.io/pod-viewer created</span>
+
+kubectl get role
+<span class="c1"># NAME         CREATED AT</span>
+<span class="c1"># pod-viewer   2020-05-31T17:16:47Z</span>
+</code></pre></div>
+<h3 id="subjects">Subjects<a class="headerlink" href="#subjects" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl get serviceaccount  <span class="c1"># 또는 sa</span>
+<span class="c1"># NAME      SECRETS   AGE</span>
+<span class="c1"># default   1         28h</span>
+<span class="c1"># mysa      1         28h</span>
+
+kubectl get serviceaccount mysa -oyaml
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># kind: ServiceAccount</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   creationTimestamp: &quot;2020-06-07T10:08:29Z&quot;</span>
+<span class="c1">#   name: mysa</span>
+<span class="c1">#   namespace: default</span>
+<span class="c1">#   resourceVersion: &quot;292&quot;</span>
+<span class="c1">#   selfLink: /api/v1/namespaces/default/serviceaccounts/mysa</span>
+<span class="c1">#   uid: 0183509b-2e36-412d-b229-048f09b2afc1</span>
+<span class="c1"># secrets:</span>
+<span class="c1"># - name: mysa-token-vkrsk</span>
+</code></pre></div>
+<h3 id="rolebinding-clusterrolebinding">RoleBinding (ClusterRoleBinding)<a class="headerlink" href="#rolebinding-clusterrolebinding" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># read-pods.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">RoleBinding</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">read-pods</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">subjects</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ServiceAccount</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mysa</span>
+<span class="nt">roleRef</span><span class="p">:</span>
+  <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Role</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">pod-viewer</span>
+  <span class="nt">apiGroup</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">rbac.authorization.k8s.io</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f read-pods.yaml
+<span class="c1"># rolebinding.rbac.authorization.k8s.io/read-pods created</span>
+
+kubectl get rolebinding
+<span class="c1"># NAME        ROLE              AGE</span>
+<span class="c1"># read-pods   Role/pod-viewer   20s</span>
+
+
+kubectl config set-context kubernetes-admin@cluster.local --user<span class="o">=</span>bearer
+
+kubectl get pod
+
+<span class="c1"># 원복</span>
+kubectl config set-context kubernetes-admin@cluster.local --user<span class="o">=</span>kubernetes-admin
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># nginx-sa.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx-sa</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">serviceAccountName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mysa</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f nginx-sa.yaml
+<span class="c1"># pod/nginx-sa created</span>
+
+kubectl get pod nginx-sa -oyaml <span class="p">|</span> grep serviceAccountName
+<span class="c1">#   serviceAccountName: mysa</span>
+
+<span class="c1"># 내부 접근</span>
+kubectl <span class="nb">exec</span> -it nginx-sa -- bash
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># kubectl 설치</span>
+$ root@nginx-sa:/# curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl <span class="se">\</span>
+                 <span class="o">&amp;&amp;</span> chmod +x ./kubectl <span class="se">\</span>
+                 <span class="o">&amp;&amp;</span> mv ./kubectl /usr/local/bin
+
+<span class="c1"># Pod 리소스 조회</span>
+<span class="nv">$root</span>@nginx-sa:/# kubectl get pod
+<span class="c1"># NAME      READY   STATUS    RESTARTS   AGE</span>
+<span class="c1"># nginx-sa  2/2     Running   0          2d21h</span>
+
+<span class="c1"># Service 리소스 조회</span>
+<span class="nv">$root</span>@nginx-sa:/# kubectl get svc
+<span class="c1"># Error from server (Forbidden): services is forbidden: User </span>
+<span class="c1"># &quot;system:serviceaccount:default:mysa&quot; cannot list resource &quot;services&quot;</span>
+<span class="c1">#  in API group &quot;&quot; in the namespace &quot;default&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Pod를 빠져나갑니다.</span>
+<span class="nv">$root</span>@nginx-sa:/# <span class="nb">exit</span>
+
+<span class="c1"># 호스트 서버에서 다음 명령을 수행</span>
+cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: rbac.authorization.k8s.io/v1</span>
+<span class="s">kind: Role</span>
+<span class="s">metadata:</span>
+<span class="s">  namespace: default</span>
+<span class="s">  name: pod-viewer</span>
+<span class="s">rules:</span>
+<span class="s">- apiGroups: [&quot;&quot;]</span>
+<span class="s">  resources: </span>
+<span class="s">  - pods</span>
+<span class="s">  - services   # services 리소스 추가</span>
+<span class="s">  verbs: </span>
+<span class="s">  - get</span>
+<span class="s">  - watch</span>
+<span class="s">  - list</span>
+<span class="s">EOF</span>
+<span class="c1"># role.rbac.authorization.k8s.io/pod-viewer edited</span>
+
+<span class="c1"># 다시 Pod 접속</span>
+kubectl <span class="nb">exec</span> -it nginx-sa -- bash
+
+<span class="c1"># Service 리소스 조회</span>
+<span class="nv">$root</span>@nginx-sa:/# kubectl get svc
+<span class="c1"># NAME           TYPE           CLUSTER-IP      ...   </span>
+<span class="c1"># kubernetes     ClusterIP      10.43.0.1       ...</span>
+
+<span class="nv">$root</span>@nginx-sa:/# <span class="nb">exit</span>
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete pod nginx-sa
+kubectl delete rolebinding read-pods
+kubectl delete role pod-viewer
+kubectl delete sa mysa
+</code></pre></div>
+<h2 id="network-policy">네트워크 접근 제어 (Network Policy)<a class="headerlink" href="#network-policy" title="Permanent link">&para;</a></h2>
+<h3 id="_1">쿠버네티스 네트워크 기본 정책<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<h3 id="networkpolicy"><code>NetworkPolicy</code> 문법<a class="headerlink" href="#networkpolicy" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">allow-all</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+  <span class="nt">policyTypes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Egress</span>
+  <span class="nt">ingress</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="p p-Indicator">{}</span>
+  <span class="nt">egress</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="p p-Indicator">{}</span>
+</code></pre></div>
+<h3 id="_2">네트워크 구성<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl run client --image nginx
+<span class="c1"># pod/client created </span>
+</code></pre></div>
+<h4 id="inbound-outbound">Inbound / Outbound<a class="headerlink" href="#inbound-outbound" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># in-out.yaml</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">in-out</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+  <span class="nt">ingress</span><span class="p">:</span> <span class="p p-Indicator">[]</span>
+  <span class="nt">egress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="p p-Indicator">{}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f <span class="k">in</span>-out.yaml
+<span class="c1"># networkpolicy.networking.k8s.io/in-out created</span>
+
+kubectl get networkpolicy
+<span class="c1"># NAME       POD-SELECTOR   AGE</span>
+<span class="c1"># in-out     &lt;none&gt;         2s</span>
+
+kubectl get networkpolicy <span class="k">in</span>-out -oyaml
+<span class="c1"># apiVersion: networking.k8s.io/v1</span>
+<span class="c1"># kind: NetworkPolicy</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   ...</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   podSelector: {}</span>
+<span class="c1">#   policyTypes:</span>
+<span class="c1">#   - Ingress</span>
+</code></pre></div>
+<h4 id="web-pod">Web pod 오픈<a class="headerlink" href="#web-pod" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># web-open.yaml</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web-open</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web</span>
+  <span class="nt">ingress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">from</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">podSelector</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+    <span class="nt">ports</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
+      <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f web-open.yaml
+<span class="c1"># networkpolicy.networking.k8s.io/deny-all created</span>
+
+<span class="c1"># run=web 이라는 라벨을 가진 웹 서버 생성</span>
+kubectl run web --image nginx
+<span class="c1"># pod/web created </span>
+
+<span class="c1"># run=non-web 이라는 라벨을 가진 웹 서버 생성</span>
+kubectl run non-web --image nginx
+<span class="c1"># pod/non-web created </span>
+
+<span class="c1"># Pod IP 확인</span>
+kubectl get pod -owide
+<span class="c1"># NAME      READY   STATUS    RESTARTS   AGE     IP            NODE </span>
+<span class="c1"># web       1/1     Running   0          34s     10.42.0.169   master</span>
+<span class="c1"># non-web   1/1     Running   0          32s     10.42.0.170   master</span>
+<span class="c1"># client    1/1     Running   0          28s     10.42.0.171   master</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># client Pod 진입</span>
+kubectl <span class="nb">exec</span> -it client -- bash
+
+<span class="c1"># web Pod 호출</span>
+<span class="nv">$root</span>@client:/# curl <span class="m">10</span>.42.0.169  <span class="c1"># web</span>
+<span class="c1"># &lt;!DOCTYPE html&gt;</span>
+<span class="c1"># &lt;html&gt;</span>
+<span class="c1"># &lt;head&gt;</span>
+<span class="c1"># &lt;title&gt;Welcome to nginx!&lt;/title&gt;</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># non-web Pod 호출</span>
+<span class="nv">$root</span>@client:/# curl <span class="m">10</span>.42.0.170  <span class="c1"># non-web</span>
+<span class="c1"># curl: (7) Failed to connect to 10.42.0.170 port 80: Connection refused</span>
+
+<span class="nv">$root</span>@client:/# <span class="nb">exit</span>
+</code></pre></div>
+<h4 id="web-app">Web과의 통신만 허용된 app<a class="headerlink" href="#web-app" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># allow-from-web.yaml</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">allow-from-web</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+  <span class="nt">ingress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">from</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">podSelector</span><span class="p">:</span>
+        <span class="nt">matchLabels</span><span class="p">:</span>
+          <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f allow-from-web.yaml
+<span class="c1"># networkpolicy.networking.k8s.io/allow-from-web created</span>
+
+<span class="c1"># run=app 이라는 라벨을 가진 앱 서버 생성</span>
+kubectl run app --image nginx
+<span class="c1"># pod/app created</span>
+
+<span class="c1"># Pod IP 확인</span>
+kubectl get pod -owide
+<span class="c1"># NAME      READY   STATUS    RESTARTS   AGE     IP            NODE</span>
+<span class="c1"># web       1/1     Running   0          34s     10.42.0.169   master</span>
+<span class="c1"># non-web   1/1     Running   0          32s     10.42.0.170   master</span>
+<span class="c1"># client    1/1     Running   0          28s     10.42.0.171   worker</span>
+<span class="c1"># app       1/1     Running   0          28s     10.42.0.172   worker</span>
+
+<span class="c1"># client Pod 진입</span>
+kubectl <span class="nb">exec</span> -it client -- bash
+
+<span class="c1"># client에서 app 서버 호출</span>
+<span class="nv">$root</span>@client:/# curl <span class="m">10</span>.42.0.172    <span class="c1"># app</span>
+<span class="c1"># curl: (7) Failed to connect to 10.42.0.172 port 80: Connection refused</span>
+
+<span class="c1"># client Pod 종료</span>
+<span class="nv">$root</span>@client:/# <span class="nb">exit</span>
+
+<span class="c1"># web Pod 진입</span>
+kubectl <span class="nb">exec</span> -it web -- bash
+
+<span class="c1"># web에서 app 서버 호출</span>
+<span class="nv">$root</span>@web:/# curl <span class="m">10</span>.42.0.172
+<span class="c1"># &lt;!DOCTYPE html&gt;</span>
+<span class="c1"># &lt;html&gt;</span>
+<span class="c1"># &lt;head&gt;</span>
+<span class="c1"># &lt;title&gt;Welcome to nginx!&lt;/title&gt;</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># web Pod 종료</span>
+<span class="nv">$root</span>@web:/# <span class="nb">exit</span>
+
+<span class="c1"># non-web Pod 진입</span>
+kubectl <span class="nb">exec</span> -it non-web -- bash
+
+<span class="c1"># non-web에서 app 서버 호출</span>
+<span class="nv">$root</span>@non-web:/# curl <span class="m">10</span>.42.0.172
+<span class="c1"># curl: (7) Failed to connect to 10.42.0.172 port 80: Connection refused</span>
+
+<span class="nv">$root</span>@non-web:/# <span class="nb">exit</span>
+</code></pre></div>
+<h4 id="dev">dev 네임스페이스 외의 아웃바운드 차단<a class="headerlink" href="#dev" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># dont-leave-dev.yaml</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">dont-leave-dev</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">dev</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+  <span class="nt">ingress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="p p-Indicator">{}</span>
+  <span class="nt">egress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">to</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">podSelector</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># dev 네임스페이스 생성</span>
+kubectl create ns dev
+<span class="c1"># namespace/dev created</span>
+
+<span class="c1"># Egress 네트워크 정책 생성</span>
+kubectl apply -f dont-leave-dev.yaml
+<span class="c1"># networkpolicy.networking.k8s.io/dont-leave-dev created</span>
+
+kubectl run dev1 --image nginx -n dev
+<span class="c1"># pod/dev1 created</span>
+
+kubectl run dev2 --image nginx -n dev
+<span class="c1"># pod/dev2 created</span>
+
+<span class="c1"># Pod IP 확인</span>
+kubectl get pod -owide -n dev
+<span class="c1"># NAME      READY   STATUS    RESTARTS   AGE     IP            NODE </span>
+<span class="c1"># dev1      1/1     Running   0          34s     10.42.0.191   master </span>
+<span class="c1"># dev2      1/1     Running   0          32s     10.42.0.192   master </span>
+
+<span class="c1"># dev1 Pod 진입</span>
+kubectl <span class="nb">exec</span> -it dev1 -n dev -- bash
+
+<span class="c1"># dev1에서 dev2로 호출</span>
+<span class="nv">$root</span>@dev1:/# curl <span class="m">10</span>.42.0.192
+<span class="c1"># &lt;!DOCTYPE html&gt;</span>
+<span class="c1"># &lt;html&gt;</span>
+<span class="c1"># &lt;head&gt;</span>
+<span class="c1"># &lt;title&gt;Welcome to nginx!&lt;/title&gt;</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># dev1에서 proxy 서버로 호출 (proxy 서버IP: 10.42.0.183)</span>
+<span class="nv">$root</span>@dev1:/# curl <span class="m">10</span>.42.0.183
+<span class="c1"># curl: (7) Failed to connect to 10.42.0.183 port 80: Connection refused</span>
+
+<span class="nv">$root</span>@dev1:/# <span class="nb">exit</span>
+</code></pre></div>
+<h3 id="_3">네트워크 정책 전체 스펙<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">full-network-policy</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">podSelector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">db</span>
+  <span class="nt">policyTypes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">Egress</span>
+  <span class="nt">ingress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">from</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">ipBlock</span><span class="p">:</span>
+        <span class="nt">cidr</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">172.17.0.0/16</span>
+        <span class="nt">except</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">172.17.1.0/24</span>
+    <span class="p p-Indicator">-</span> <span class="nt">namespaceSelector</span><span class="p">:</span>
+        <span class="nt">matchLabels</span><span class="p">:</span>
+          <span class="nt">project</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">dev</span>
+    <span class="p p-Indicator">-</span> <span class="nt">podSelector</span><span class="p">:</span>
+        <span class="nt">matchLabels</span><span class="p">:</span>
+          <span class="nt">role</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web</span>
+    <span class="nt">ports</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
+      <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">3306</span>
+  <span class="nt">egress</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">to</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">ipBlock</span><span class="p">:</span>
+        <span class="nt">cidr</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10.0.0.0/24</span>
+    <span class="nt">ports</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">protocol</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">TCP</span>
+      <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">53</span>
+</code></pre></div>
+<h3 id="clean-up_1">Clean up<a class="headerlink" href="#clean-up_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete pod app client non-web web
+kubectl delete networkpolicy --all -A
+kubectl delete ns dev
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

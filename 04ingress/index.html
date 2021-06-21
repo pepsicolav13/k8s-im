@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>04 Ingress - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter active" data-path="04ingress/">
+<a href="./">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="04-ingress">04 Ingress<a class="headerlink" href="#04-ingress" title="Permanent link">&para;</a></h1>
+<h3 id="ingress-controller">Ingress Controller 종류<a class="headerlink" href="#ingress-controller" title="Permanent link">&para;</a></h3>
+<ul>
+<li>NGINX Ingress Controller (<a href="https://kubernetes.github.io/ingress-nginx/">https://kubernetes.github.io/ingress-nginx</a>)</li>
+<li>HAProxy (<a href="https://haproxy-ingress.github.io/">https://haproxy-ingress.github.io</a>)</li>
+<li>AWS ALB Ingress Controller (<a href="https://github.com/kubernetes-sigs/aws-alb-ingress-controller">https://github.com/kubernetes-sigs/aws-alb-ingress-controller</a>)</li>
+<li>Ambassador (<a href="https://www.getambassador.io">https://www.getambassador.io</a>)</li>
+<li>Kong (<a href="https://konghq.com/">https://konghq.com</a>)</li>
+<li>traefik (<a href="https://github.com/containous/traefik">https://github.com/containous/traefik</a>)</li>
+</ul>
+<h3 id="nginx-ingress-controller">NGINX Ingress Controller 설치<a class="headerlink" href="#nginx-ingress-controller" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl create ns ctrl
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm install ingress-nginx ingress-nginx/ingress-nginx -n ctrl
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl get pod -n ctrl
+
+kubectl get svc -n ctrl
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># change to hostPort</span>
+helm fetch --untar ingress-nginx/ingress-nginx
+helm upgrade ingress-nginx ./ingress-nginx -nctrl
+</code></pre></div>
+<h2 id="ingress"><code>Ingress</code> 기본 사용법<a class="headerlink" href="#ingress" title="Permanent link">&para;</a></h2>
+<h3 id="_1">도메인 주소 테스트<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>nslookup <span class="m">10</span>.0.1.1.sslip.io
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>nslookup subdomain.10.0.1.1.sslip.io
+</code></pre></div>
+<h3 id="ingress_1">첫 <code>Ingress</code> 생성<a class="headerlink" href="#ingress_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl run mynginx --image nginx --expose --port <span class="m">80</span>
+
+kubectl get pod,svc mynginx
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># mynginx-ingress.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mynginx</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mynginx</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nv">NEW_IP</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
+sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> mynginx-ingress.yaml
+
+kubectl apply -f mynginx-ingress.yaml
+
+kubectl get ingress
+
+curl <span class="m">10</span>.0.1.1.sslip.io
+</code></pre></div>
+<h3 id="_2">도메인 기반 라우팅<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl run apache --image httpd --expose --port <span class="m">80</span>
+
+kubectl run nginx --image nginx --expose --port <span class="m">80</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># domain-based-ingress.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-domain</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+    <span class="c1"># apache 서브 도메인</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+<span class="nn">---</span>  
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx-domain</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+    <span class="c1"># nginx 서브 도메인</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> domain-based-ingress.yaml
+
+kubectl apply -f domain-based-ingress.yaml
+
+curl apache.10.0.1.1.sslip.io
+
+curl nginx.10.0.1.1.sslip.io
+</code></pre></div>
+<h3 id="path">Path 기반 라우팅<a class="headerlink" href="#path" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># path-based-ingress.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">nginx.ingress.kubernetes.io/rewrite-target</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span> 
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-path</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/apache</span>
+<span class="nn">---</span>  
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">extensions/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">nginx.ingress.kubernetes.io/rewrite-target</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span> 
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx-path</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/nginx</span>
+</code></pre></div>
+<ul>
+<li><code>nginx.ingress.kubernetes.io/rewrite-target: /</code>: path 재정의 지시자</li>
+</ul>
+<div class="highlight"><pre><span></span><code>sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> path-based-ingress.yaml
+kubectl apply -f path-based-ingress.yaml
+
+curl <span class="m">10</span>.0.1.1.sslip.io/apache
+
+curl <span class="m">10</span>.0.1.1.sslip.io/nginx
+</code></pre></div>
+<h2 id="basic-auth">Basic Auth 설정<a class="headerlink" href="#basic-auth" title="Permanent link">&para;</a></h2>
+<h3 id="basic-authentication">Basic Authentication<a class="headerlink" href="#basic-authentication" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>Authorization: Basic <span class="nv">$BASE64</span><span class="o">(</span>user:password<span class="o">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 헤더 없이 접속 시도</span>
+curl -v https://httpbin.org/basic-auth/foo/bar
+
+curl -v -H <span class="s2">&quot;Authorization: Basic </span><span class="k">$(</span><span class="nb">echo</span> -n foo:bar <span class="p">|</span> base64<span class="k">)</span><span class="s2">&quot;</span> https://httpbin.org/basic-auth/foo/bar
+</code></pre></div>
+<h3 id="basic-auth_1">Basic Auth 설정<a class="headerlink" href="#basic-auth_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>sudo apt install -y apache2-utils<span class="o">=</span><span class="m">2</span>.4.41-4ubuntu3.1
+
+htpasswd -cb auth foo bar
+
+kubectl create secret generic basic-auth --from-file<span class="o">=</span>auth
+
+kubectl get secret basic-auth -oyaml
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># apache-auth.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">nginx.ingress.kubernetes.io/auth-type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">basic</span>
+    <span class="nt">nginx.ingress.kubernetes.io/auth-secret</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">basic-auth</span>
+    <span class="nt">nginx.ingress.kubernetes.io/auth-realm</span><span class="p">:</span> <span class="s">&#39;Authentication</span><span class="nv"> </span><span class="s">Required</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">foo&#39;</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-auth</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-auth.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> apache-auth.yaml
+
+kubectl apply -f apache-auth.yaml
+curl -I apache-auth.10.0.1.1.sslip.io
+
+curl -I -H <span class="s2">&quot;Authorization: Basic </span><span class="k">$(</span><span class="nb">echo</span> -n foo:bar <span class="p">|</span> base64<span class="k">)</span><span class="s2">&quot;</span> apache-auth.10.0.1.1.sslip.io
+</code></pre></div>
+<h2 id="tls">TLS 설정<a class="headerlink" href="#tls" title="Permanent link">&para;</a></h2>
+<h3 id="self-signed">Self-signed 인증서 설정<a class="headerlink" href="#self-signed" title="Permanent link">&para;</a></h3>
+<h4 id="self-signed_1">Self-signed 인증서 생성하기<a class="headerlink" href="#self-signed_1" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>openssl req -x509 -nodes -days <span class="m">365</span> -newkey rsa:2048 -keyout tls.key -out tls.crt -subj <span class="s2">&quot;/CN=apache-tls.</span><span class="nv">$NEW_IP</span><span class="s2">.sslip.io&quot;</span>
+
+ls
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: v1</span>
+<span class="s">kind: Secret</span>
+<span class="s">metadata:</span>
+<span class="s">  name: my-tls-certs</span>
+<span class="s">  namespace: default</span>
+<span class="s">data:</span>
+<span class="s">  tls.crt: $(cat tls.crt | base64 | tr -d &#39;\n&#39;)</span>
+<span class="s">  tls.key: $(cat tls.key | base64 | tr -d &#39;\n&#39;)</span>
+<span class="s">type: kubernetes.io/tls</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<h4 id="ingress-tls">Ingress TLS 설정하기<a class="headerlink" href="#ingress-tls" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># apache-tls.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-tls</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">apache-tls.10.0.1.1.sslip.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-tls-certs</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-tls.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+        <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> apache-tls.yaml
+kubectl apply -f apache-tls.yaml
+<span class="c1"># ingress.networking.k8s.io/apache-tls created</span>
+</code></pre></div>
+<h3 id="cert-manager">cert-manager를 이용한 인증서 발급 자동화<a class="headerlink" href="#cert-manager" title="Permanent link">&para;</a></h3>
+<h4 id="cert-manager_1">cert-manager 설치<a class="headerlink" href="#cert-manager_1" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code>kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.yaml
+</code></pre></div>
+<h4 id="issuer">Issuer 생성<a class="headerlink" href="#issuer" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># http-issuer.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">cert-manager.io/v1alpha2</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ClusterIssuer</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-issuer</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">acme</span><span class="p">:</span>
+    <span class="nt">email</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mymail@gmail.com</span>
+    <span class="nt">server</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">https://acme-v02.api.letsencrypt.org/directory</span>
+    <span class="nt">privateKeySecretRef</span><span class="p">:</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">issuer-key</span>
+    <span class="nt">solvers</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">http01</span><span class="p">:</span>
+       <span class="nt">ingress</span><span class="p">:</span>
+         <span class="nt">class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 아래와 같이 특정 URL에 Let&#39;s encrypt가 제공한 토큰을 응답하여 도메인 주소 소유권을 증명</span>
+http://&lt;YOUR_DOMAIN&gt;/.well-known/acme-challenge/&lt;TOKEN&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f http-issuer.yaml
+<span class="c1"># clusterissuer.cert-manager.io/http-issuer created</span>
+
+kubectl get clusterissuer
+<span class="c1"># NAME          READY   AGE</span>
+<span class="c1"># http-issuer   True    2m</span>
+</code></pre></div>
+<h4 id="cert-manager-tls-ingress">cert-manager가 관리하는 TLS <code>Ingress</code> 생성<a class="headerlink" href="#cert-manager-tls-ingress" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># apache-tls-issuer.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="c1"># 앞서 생성한 발급자 지정</span>
+    <span class="nt">cert-manager.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-issuer</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-tls-issuer</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="c1"># 10.0.1.1을 공인IP로 변경해 주세요.</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-issuer.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="c1"># 10.0.1.1을 공인IP로 변경해 주세요.</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">apache-issuer.10.0.1.1.sslip.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apache-tls</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>sed -i <span class="s1">&#39;s/10.0.1.1/&#39;</span><span class="nv">$NEW_IP</span><span class="s1">&#39;/g&#39;</span> apache-tls-issuer.yaml
+
+kubectl apply -f apache-tls-issuer.yaml
+<span class="c1"># ingress.networking.k8s.io/apache-tls-issuer created</span>
+
+watch kubectl get certificate 
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete ingress --all
+kubectl delete pod apache nginx mynginx
+kubectl delete svc apache nginx mynginx
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

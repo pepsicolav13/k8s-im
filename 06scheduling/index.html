@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>06 고급 스케줄링 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter active" data-path="06scheduling/">
+<a href="./">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="06">06장 고급 스케줄링<a class="headerlink" href="#06" title="Permanent link">&para;</a></h1>
+<h2 id="-pod">고가용성 확보 - Pod 레벨<a class="headerlink" href="#-pod" title="Permanent link">&para;</a></h2>
+<h3 id="metrics-server">Metrics server 설치<a class="headerlink" href="#metrics-server" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Already install by kubespray</span>
+<span class="c1"># helm install metrics-server bitnami/metrics-server</span>
+
+kubectl get pod -n kube-system
+<span class="c1"># NAME                   READY   STATUS    RESTARTS   AGE</span>
+<span class="c1"># metrics-server-xxxxx   1/1     Running   0          2h</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 리소스 사용량을 모니터링할 Pod를 하나 생성합니다.</span>
+kubectl run mynginx --image nginx
+
+<span class="c1"># Pod별 리소스 사용량을 확인합니다.</span>
+kubectl top pod
+<span class="c1"># NAME        CPU(cores)   MEMORY(bytes)</span>
+<span class="c1"># mynginx     0m           2Mi</span>
+
+<span class="c1"># Node별 리소스 사용량을 확인합니다.</span>
+kubectl top node
+<span class="c1"># NAME    CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%</span>
+<span class="c1"># node1   216m         12%    1905Mi          58%</span>
+<span class="c1"># node2   182m         10%    1979Mi          60%</span>
+<span class="c1"># node3   132m         6%     1745Mi          49%</span>
+
+kubectl delete pod mynginx
+<span class="c1"># pod/mynginx deleted</span>
+</code></pre></div>
+<h3 id="pod">자동 확장할 Pod 생성<a class="headerlink" href="#pod" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="x"># image: k8s.gcr.io/hpa-example</span>
+<span class="cp">&lt;?php</span>
+  <span class="nv">$x</span> <span class="o">=</span> <span class="mf">0.0001</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="nv">$i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nv">$i</span> <span class="o">&lt;=</span> <span class="mi">1000000</span><span class="p">;</span> <span class="nv">$i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nv">$x</span> <span class="o">+=</span> <span class="nb">sqrt</span><span class="p">(</span><span class="nv">$x</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">echo</span> <span class="s2">&quot;OK!&quot;</span><span class="p">;</span>
+<span class="cp">?&gt;</span><span class="x"></span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># heavy-cal.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">k8s.gcr.io/hpa-example</span>
+        <span class="nt">ports</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">containerPort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+        <span class="nt">resources</span><span class="p">:</span>
+          <span class="nt">limits</span><span class="p">:</span>
+            <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">500m</span>
+          <span class="nt">requests</span><span class="p">:</span>
+            <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">300m</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Service</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">ports</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">port</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">80</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">run</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f heavy-cal.yaml
+<span class="c1"># deployment.apps/heavy-cal created</span>
+<span class="c1"># service/heavy-cal created</span>
+</code></pre></div>
+<h3 id="hpa-"><code>hpa</code> 생성 - 선언형 명령<a class="headerlink" href="#hpa-" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># hpa.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">autoscaling/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">HorizontalPodAutoscaler</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">maxReplicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">50</span>
+  <span class="nt">minReplicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">scaleTargetRef</span><span class="p">:</span>
+    <span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-cal</span>
+  <span class="nt">targetCPUUtilizationPercentage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">50</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># hpa 리소스 생성</span>
+kubectl apply -f hpa.yaml
+<span class="c1"># horizontalpodautoscaler.autoscaling/heavy-cal autoscaled</span>
+</code></pre></div>
+<h3 id="hpa-_1"><code>hpa</code> 생성 - 명령형 명령<a class="headerlink" href="#hpa-_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl autoscale deployment heavy-cal --cpu-percent<span class="o">=</span><span class="m">50</span> --min<span class="o">=</span><span class="m">1</span> --max<span class="o">=</span><span class="m">50</span>
+<span class="c1"># horizontalpodautoscaler.autoscaling/heavy-cal autoscaled</span>
+
+kubectl get hpa
+<span class="c1"># NAME        REFERENCE                   TARGET    MINPODS  MAXPODS   </span>
+<span class="c1"># heavy-cal   Deployment/heavy-cal/scale  0% / 50%  1        50        </span>
+<span class="c1">#</span>
+<span class="c1">#                                                       REPLICAS   AGE</span>
+<span class="c1">#                                                       1          18s</span>
+</code></pre></div>
+<h3 id="_1">자동확장 테스트<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># heavy-load.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">heavy-load</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">busybox</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">busybox</span>
+    <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;/bin/sh&quot;</span><span class="p p-Indicator">]</span>
+    <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;-c&quot;</span><span class="p p-Indicator">,</span> <span class="s">&quot;while</span><span class="nv"> </span><span class="s">true;</span><span class="nv"> </span><span class="s">do</span><span class="nv"> </span><span class="s">wget</span><span class="nv"> </span><span class="s">-q</span><span class="nv"> </span><span class="s">-O-</span><span class="nv"> </span><span class="s">http://heavy-cal;</span><span class="nv"> </span><span class="s">done&quot;</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f heavy-load.yaml
+<span class="c1"># pod/heavy-load created</span>
+
+<span class="c1"># watch문으로 heavy-cal를 계속 지켜보고 있으면 Pod의 개수가 증가하는 것을 확인할 수 있습니다.</span>
+watch kubectl top pod
+<span class="c1"># NAME                         CPU(cores)   MEMORY(bytes)</span>
+<span class="c1"># heavy-load                   7m           1Mi</span>
+<span class="c1"># heavy-cal-548855cf99-9s44l   140m         12Mi</span>
+<span class="c1"># heavy-cal-548855cf99-lnbvm   122m         13Mi</span>
+<span class="c1"># heavy-cal-548855cf99-lptbq   128m         13Mi</span>
+<span class="c1"># heavy-cal-548855cf99-qpdng   89m          12Mi</span>
+<span class="c1"># heavy-cal-548855cf99-tvgfn   137m         13Mi</span>
+<span class="c1"># heavy-cal-548855cf99-x64mg   110m         12Mi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl delete pod heavy-load
+</code></pre></div>
+<h2 id="-node">고가용성 확보 - Node 레벨<a class="headerlink" href="#-node" title="Permanent link">&para;</a></h2>
+<h3 id="aws-eks-cluster-autoscaler">AWS EKS Cluster AutoScaler 설정<a class="headerlink" href="#aws-eks-cluster-autoscaler" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nv">NAME</span><span class="o">=</span>k8s
+<span class="nv">REGION</span><span class="o">=</span>ap-northeast-2
+
+helm install autoscaler stable/cluster-autoscaler <span class="se">\</span>
+  --namespace kube-system <span class="se">\</span>
+  --set autoDiscovery.clusterName<span class="o">=</span><span class="nv">$NAME</span>,awsRegion<span class="o">=</span><span class="nv">$REGION</span>,sslCertPath<span class="o">=</span>/etc/kubernetes/pki/ca.crt
+  --version <span class="m">7</span>.3.4
+</code></pre></div>
+<h3 id="gcp-gke-cluster-autoscaler">GCP GKE Cluster AutoScaler 설정<a class="headerlink" href="#gcp-gke-cluster-autoscaler" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nv">CLUSTER_NAME</span><span class="o">=</span>k8s
+<span class="nv">REGION</span><span class="o">=</span>us-central1-a
+
+gcloud container clusters create <span class="nv">$CLUSTER_NAME</span> <span class="se">\</span>
+    --enable-autoscaling <span class="se">\</span>
+    --min-nodes<span class="o">=</span><span class="m">1</span> <span class="se">\</span>
+    --num-nodes<span class="o">=</span><span class="m">2</span> <span class="se">\</span>
+    --max-nodes<span class="o">=</span><span class="m">4</span> <span class="se">\</span>
+    --node-locations<span class="o">=</span><span class="nv">$CLUSTER_NAME</span> <span class="se">\</span>
+    --machine-type<span class="o">=</span>n1-highcpu-8
+</code></pre></div>
+<h3 id="cluster-autoscaling">Cluster AutoScaling 활용<a class="headerlink" href="#cluster-autoscaling" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 인위적으로 Pod 증가</span>
+kubectl scale deployment heavy-cal --replicas<span class="o">=</span><span class="m">50</span>
+<span class="c1"># deployment.apps/heavy-cal scaled</span>
+
+<span class="c1"># Pod 리스트</span>
+kubectl get pod
+<span class="c1"># NAME                        READY   STATUS    RESTARTS   AGE</span>
+<span class="c1"># heavy-cal-548855cf99-x64m   1/1     Running   0          2s</span>
+<span class="c1"># heavy-cal-548855cf99-dfx2   1/1     Running   0          2s</span>
+<span class="c1"># heavy-cal-548855cf99-sf3x   1/1     Running   0          2s</span>
+<span class="c1"># ....</span>
+<span class="c1"># heavy-cal-548855cf99-a21t   0/1     Pending   0          2s</span>
+<span class="c1"># heavy-cal-548855cf99-g8ib   0/1     Pending   0          2s</span>
+<span class="c1"># heavy-cal-548855cf99-b754   0/1     Pending   0          2s</span>
+<span class="c1"># ...</span>
+
+watch kubectl get node
+<span class="c1"># NAME             STATUS   ROLES    AGE   VERSION</span>
+<span class="c1"># ip-172-31-42-5   Ready             13h   v1.18.6</span>
+<span class="c1"># ip-172-31-44-9   Ready             1m    v1.18.6</span>
+<span class="c1"># ....             Ready             1m    v1.18.6</span>
+<span class="c1"># ....</span>
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete hpa heavy-cal
+kubectl delete deploy heavy-cal
+kubectl delete svc heavy-cal
+</code></pre></div>
+<h2 id="taint-toleration"><code>Taint &amp; Toleration</code><a class="headerlink" href="#taint-toleration" title="Permanent link">&para;</a></h2>
+<h3 id="taint">Taint<a class="headerlink" href="#taint" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># taint 방법</span>
+kubectl taint nodes <span class="nv">$NODE_NAME</span> &lt;KEY&gt;<span class="o">=</span>&lt;VALUE&gt;:&lt;EFFECT&gt;
+</code></pre></div>
+<h3 id="toleration">Toleration<a class="headerlink" href="#toleration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># project=A 라는 taint를 NoSchedule로 설정</span>
+kubectl taint node node1 <span class="nv">project</span><span class="o">=</span>A:NoSchedule
+<span class="c1"># node/node1 tainted</span>
+
+kubectl get node node1 -oyaml <span class="p">|</span> grep -A <span class="m">4</span> taints
+<span class="c1">#  taints:</span>
+<span class="c1">#  - effect: NoSchedule</span>
+<span class="c1">#    key: project</span>
+<span class="c1">#    value: A</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># no-tolerate.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">no-tolerate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">nodeSelector</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/hostname</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node1</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f no-tolerate.yaml
+<span class="c1"># pod/no-tolerate created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME            READY   STATUS    RESTARTS   AGE     IP             NODE   </span>
+<span class="c1"># no-tolerate     0/1     Pending   0          11s     &lt;none&gt;         &lt;none&gt; </span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># tolerate.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">tolerate</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">tolerations</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="s">&quot;project&quot;</span>
+    <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;A&quot;</span>
+    <span class="nt">operator</span><span class="p">:</span> <span class="s">&quot;Equal&quot;</span>
+    <span class="nt">effect</span><span class="p">:</span> <span class="s">&quot;NoSchedule&quot;</span>
+  <span class="nt">nodeSelector</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/hostname</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node1</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f tolerate.yaml
+<span class="c1"># pod/tolerate created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME            READY   STATUS       RESTARTS   AGE</span>
+<span class="c1"># no-tolerate     0/1     Pending      0          2m7s</span>
+<span class="c1"># tolerate        1/1     Running      0          5s</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># node1에 taint를 추가합니다.</span>
+<span class="c1"># 이번에는 key만 존재하는 taint를 적용해 봅니다.</span>
+kubectl taint node node1 <span class="nv">badsector</span><span class="o">=</span>:NoSchedule
+<span class="c1"># node/node1 tainted</span>
+
+kubectl get node node1 -oyaml <span class="p">|</span> grep -A <span class="m">7</span> taints
+<span class="c1">#  taints:</span>
+<span class="c1">#  - effect: NoSchedule</span>
+<span class="c1">#    key: project</span>
+<span class="c1">#    value: A</span>
+<span class="c1">#  - effect: NoSchedule</span>
+<span class="c1">#    key: badsector</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># badsector.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">badsector</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">tolerations</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="s">&quot;project&quot;</span>
+    <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;A&quot;</span>
+    <span class="nt">operator</span><span class="p">:</span> <span class="s">&quot;Equal&quot;</span>
+    <span class="nt">effect</span><span class="p">:</span> <span class="s">&quot;NoSchedule&quot;</span>
+  <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="s">&quot;badsector&quot;</span>
+    <span class="nt">operator</span><span class="p">:</span> <span class="s">&quot;Exists&quot;</span>
+  <span class="nt">nodeSelector</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/hostname</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node1</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f badsector.yaml
+<span class="c1"># pod/badsector created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME         READY   STATUS    RESTARTS   AGE    IP              NODE</span>
+<span class="c1"># no-tolerate  0/1     Pending   0          2m7s   &lt;none&gt;          &lt;none&gt;</span>
+<span class="c1"># tolerate     1/1     Running   0          2m     10.233.90.8     node1</span>
+<span class="c1"># badsector    1/1     Running   0          16s    10.233.87.23    node1</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># project taint 제거</span>
+kubectl taint node node1 project-
+<span class="c1"># badsector taint 제거</span>
+kubectl taint node node1 badsector-
+
+kubectl get pod -o wide
+<span class="c1"># NAME         READY   STATUS              RESTARTS   AGE    IP              NODE</span>
+<span class="c1"># no-tolerate  0/1     ContainerCreating   0          2m7s   &lt;none&gt;          &lt;none&gt;</span>
+<span class="c1"># tolerate     1/1     Running             0          2m     10.233.90.8     node1</span>
+<span class="c1"># badsector    1/1     Running             0          16s    10.233.87.23    node1</span>
+</code></pre></div>
+<h3 id="clean-up_1">Clean up<a class="headerlink" href="#clean-up_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete pod no-tolerate tolerate badsector
+</code></pre></div>
+<h2 id="affinity-antiaffinity"><code>Affinity &amp; AntiAffinity</code><a class="headerlink" href="#affinity-antiaffinity" title="Permanent link">&para;</a></h2>
+<h3 id="nodeaffinity"><code>NodeAffinity</code><a class="headerlink" href="#nodeaffinity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># node-affinity.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node-affinity</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">affinity</span><span class="p">:</span>
+    <span class="nt">nodeAffinity</span><span class="p">:</span>
+      <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+        <span class="nt">nodeSelectorTerms</span><span class="p">:</span>
+        <span class="p p-Indicator">-</span> <span class="nt">matchExpressions</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">disktype</span>
+            <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+            <span class="nt">values</span><span class="p">:</span>
+            <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ssd</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl label node node3 <span class="nv">disktype</span><span class="o">=</span>ssd
+
+kubectl apply -f node-affinity.yaml
+<span class="c1"># pod/node-affinity created</span>
+
+kubectl get pods node-affinity -o wide
+<span class="c1"># NAME           READY   STATUS    RESTARTS  AGE   IP          NODE   ..</span>
+<span class="c1"># node-affinity  1/1     Running   0         19s   10.42.0.8   node3  ..</span>
+</code></pre></div>
+<h3 id="podaffinity"><code>PodAffinity</code><a class="headerlink" href="#podaffinity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># pod-affinity.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">pod-affinity</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">affinity</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">affinity</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+      <span class="nt">affinity</span><span class="p">:</span>
+        <span class="nt">podAffinity</span><span class="p">:</span>
+          <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">labelSelector</span><span class="p">:</span>
+              <span class="nt">matchExpressions</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+                <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+                <span class="nt">values</span><span class="p">:</span>
+                <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">affinity</span>
+            <span class="nt">topologyKey</span><span class="p">:</span> <span class="s">&quot;kubernetes.io/hostname&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f pod-affinity.yaml
+<span class="c1"># deployment.apps/pod-affinity created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME              READY  STATUS    RESTARTS  AGE   IP             NODE</span>
+<span class="c1"># pod-affinity-xxx  1/1    Running   0         11m   10.42.0.165    node1</span>
+<span class="c1"># pod-affinity-xxx  1/1    Running   0         11m   10.42.0.166    node1</span>
+</code></pre></div>
+<h3 id="podantiaffinity"><code>PodAntiAffinity</code><a class="headerlink" href="#podantiaffinity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># pod-antiaffinity.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">pod-antiaffinity</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">antiaffinity</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">antiaffinity</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+      <span class="nt">affinity</span><span class="p">:</span>
+        <span class="nt">podAntiAffinity</span><span class="p">:</span>
+          <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">labelSelector</span><span class="p">:</span>
+              <span class="nt">matchExpressions</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+                <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+                <span class="nt">values</span><span class="p">:</span>
+                <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">antiaffinity</span>
+            <span class="nt">topologyKey</span><span class="p">:</span> <span class="s">&quot;kubernetes.io/hostname&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f pod-antiaffinity.yaml
+<span class="c1"># deployment.apps/pod-antiaffinity created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME                 READY  STATUS    RESTARTS AGE  IP           NODE</span>
+<span class="c1"># pod-antiaffinity-xxx 1/1    Running   0        10s  10.42.0.168  node1</span>
+<span class="c1"># pod-antiaffinity-xxx 1/1    Running   0        11s  10.42.0.167  node2</span>
+</code></pre></div>
+<h3 id="podaffinity-podantiaffinity"><code>PodAffinity</code>와 <code>PodAntiAffinity</code> 활용법<a class="headerlink" href="#podaffinity-podantiaffinity" title="Permanent link">&para;</a></h3>
+<h4 id="cache">cache 서버 설정<a class="headerlink" href="#cache" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># redis-cache.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">redis-cache</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">store</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">store</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">affinity</span><span class="p">:</span>
+        <span class="c1"># cache 서버끼리 멀리 스케줄링</span>
+        <span class="c1"># app=store 라벨을 가진 Pod끼리 멀리 스케줄링</span>
+        <span class="nt">podAntiAffinity</span><span class="p">:</span>
+          <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">labelSelector</span><span class="p">:</span>
+              <span class="nt">matchExpressions</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+                <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+                <span class="nt">values</span><span class="p">:</span>
+                <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">store</span>
+            <span class="nt">topologyKey</span><span class="p">:</span> <span class="s">&quot;kubernetes.io/hostname&quot;</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">redis-server</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">redis</span>
+</code></pre></div>
+<h4 id="web">web 서버 설정<a class="headerlink" href="#web" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># web-server.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apps/v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Deployment</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web-server</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">selector</span><span class="p">:</span>
+    <span class="nt">matchLabels</span><span class="p">:</span>
+      <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web-store</span>
+  <span class="nt">replicas</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2</span>
+  <span class="nt">template</span><span class="p">:</span>
+    <span class="nt">metadata</span><span class="p">:</span>
+      <span class="nt">labels</span><span class="p">:</span>
+        <span class="nt">app</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web-store</span>
+    <span class="nt">spec</span><span class="p">:</span>
+      <span class="nt">affinity</span><span class="p">:</span>
+        <span class="c1"># web 서버끼리 멀리 스케줄링</span>
+        <span class="c1"># app=web-store 라벨을 가진 Pod끼리 멀리 스케줄링</span>
+        <span class="nt">podAntiAffinity</span><span class="p">:</span>
+          <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">labelSelector</span><span class="p">:</span>
+              <span class="nt">matchExpressions</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+                <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+                <span class="nt">values</span><span class="p">:</span>
+                <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">web-store</span>
+            <span class="nt">topologyKey</span><span class="p">:</span> <span class="s">&quot;kubernetes.io/hostname&quot;</span>
+        <span class="c1"># web-cache 서버끼리 가까이 스케줄링 </span>
+        <span class="c1"># app=store 라벨을 가진 Pod끼리 가까이 스케줄링</span>
+        <span class="nt">podAffinity</span><span class="p">:</span>
+          <span class="nt">requiredDuringSchedulingIgnoredDuringExecution</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">labelSelector</span><span class="p">:</span>
+              <span class="nt">matchExpressions</span><span class="p">:</span>
+              <span class="p p-Indicator">-</span> <span class="nt">key</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">app</span>
+                <span class="nt">operator</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">In</span>
+                <span class="nt">values</span><span class="p">:</span>
+                <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">store</span>
+            <span class="nt">topologyKey</span><span class="p">:</span> <span class="s">&quot;kubernetes.io/hostname&quot;</span>
+      <span class="nt">containers</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">web-app</span>
+        <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f redis-cache.yaml -f web-server.yaml
+<span class="c1"># deployment.app/redis-cache created</span>
+<span class="c1"># deployment.app/web-server created</span>
+
+
+kubectl get pod -owide
+<span class="c1"># NAME             READY  STATUS    RESTARTS  AGE     IP            NODE</span>
+<span class="c1"># redis-cache-xxx  1/1    Running   0         10s     10.42.0.151   node3</span>
+<span class="c1"># redis-cache-xxx  1/1    Running   0         10s     10.42.0.152   node2</span>
+<span class="c1"># web-server-xxxx  1/1    Running   0         11s     10.42.0.153   node3</span>
+<span class="c1"># web-server-xxxx  1/1    Running   0         11s     10.42.0.154   node2</span>
+</code></pre></div>
+<h3 id="clean-up_2">Clean up<a class="headerlink" href="#clean-up_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete -f node-affinity.yaml -f pod-affinity.yaml -f pod-antiaffinity.yaml -f redis-cache.yaml -f web-server.yaml
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>09 사용자정의 리소스 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter active" data-path="09crd/">
+<a href="./">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="09">09장 사용자 정의 리소스<a class="headerlink" href="#09" title="Permanent link">&para;</a></h1>
+<div class="highlight"><pre><span></span><code><span class="c1"># mypod-crd.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">apiextensions.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">CustomResourceDefinition</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mypods.crd.example.com</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">group</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">crd.example.com</span>
+  <span class="nt">version</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+  <span class="nt">scope</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Namespaced</span>
+  <span class="nt">names</span><span class="p">:</span>
+    <span class="nt">plural</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mypods</span>   <span class="c1"># 복수 이름</span>
+    <span class="nt">singular</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">mypod</span>  <span class="c1"># 단수 이름</span>
+    <span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">MyPod</span>      <span class="c1"># Kind 이름</span>
+    <span class="nt">shortNames</span><span class="p">:</span>      <span class="c1"># 축약 이름</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">mp</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># crd 생성</span>
+kubectl apply -f mypod-crd.yaml
+<span class="c1"># customresourcedefinition.apiextensions.k8s.io/mypods.crd.example.com created</span>
+
+<span class="c1"># crd 리소스 확인</span>
+kubectl get crd <span class="p">|</span> grep mypods
+<span class="c1"># NAME                     CREATED AT          </span>
+<span class="c1"># mypods.crd.example.com   2020-06-14T09:33:32Z          </span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># MyPod 리소스 생성</span>
+cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: &quot;crd.example.com/v1&quot;</span>
+<span class="s">kind: MyPod</span>
+<span class="s">metadata:</span>
+<span class="s">  name: mypod-test</span>
+<span class="s">spec:</span>
+<span class="s">  uri: &quot;any uri&quot;</span>
+<span class="s">  customCommand: &quot;custom command&quot;</span>
+<span class="s">  image: nginx</span>
+<span class="s">EOF</span>
+<span class="c1"># mypod.crd.example.com/mypod-test created</span>
+
+kubectl get mypod
+<span class="c1"># NAME         AGE</span>
+<span class="c1"># mypod-test   3s</span>
+
+<span class="c1"># 축약형인, mp로도 조회가 가능합니다.</span>
+kubectl get mp
+<span class="c1"># NAME         AGE</span>
+<span class="c1"># mypod-test   3s</span>
+
+<span class="c1"># MyPod의 상세 정보를 조회합니다.</span>
+kubectl get mypod mypod-test -oyaml
+<span class="c1"># apiVersion: crd.example.com/v1</span>
+<span class="c1"># kind: MyPod</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   ...</span>
+<span class="c1">#   name: mypod-test</span>
+<span class="c1">#   namespace: default</span>
+<span class="c1">#   resourceVersion: &quot;723476&quot;</span>
+<span class="c1">#   selfLink: /apis/crd.example.com/v1/namespaces/default/mypods/mypod-test</span>
+<span class="c1">#   uid: 50dd0cc8-0c1a-4f43-854b-a9c212e2046d</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   customCommand: custom command</span>
+<span class="c1">#   image: nginx</span>
+<span class="c1">#   uri: any uri</span>
+
+<span class="c1"># MyPod를 삭제합니다.</span>
+kubectl delete mp mypod-test
+<span class="c1"># mypod.crd.example.com &quot;mypod-test&quot; deleted</span>
+</code></pre></div>
+<h3 id="custom-controller">Custom Controller<a class="headerlink" href="#custom-controller" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># MyPod 정의</span>
+struct MyPod <span class="o">{</span>
+  Uri string
+  CustomCommand string
+  ...
+<span class="o">}</span>
+
+
+def main <span class="o">{</span>
+  <span class="c1"># 무한루프</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="c1"># 신규 이벤트</span>
+        desired :<span class="o">=</span> apiServer.getDesiredState<span class="o">(</span>MyPod<span class="o">)</span>
+        <span class="c1"># 기존 이벤트</span>
+        current :<span class="o">=</span> apiServer.getCurrentState<span class="o">(</span>MyPod<span class="o">)</span>
+
+        <span class="c1"># 변경점 발생시(수정,생성,삭제), 특정 동작 수행</span>
+        <span class="k">if</span> desired !<span class="o">=</span> current <span class="o">{</span>
+            makeChanges<span class="o">(</span>desired, current<span class="o">)</span> 
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

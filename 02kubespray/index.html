@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>02 Kubespray - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter active" data-path="02kubespray/">
+<a href="./">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="02-kubespray">02장 Kubespray<a class="headerlink" href="#02-kubespray" title="Permanent link">&para;</a></h1>
+<h2 id="kubespray-setup">kubespray setup 하기<a class="headerlink" href="#kubespray-setup" title="Permanent link">&para;</a></h2>
+<p>kubespray: <a href="https://github.com/kubernetes-sigs/kubespray">https://github.com/kubernetes-sigs/kubespray</a></p>
+<div class="highlight"><pre><span></span><code><span class="nv">MASTER</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
+<span class="nv">WORKER1</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
+<span class="nv">WORKER2</span><span class="o">=</span><span class="s1">&#39;x.x.x.x&#39;</span>
+
+git clone https://github.com/kubernetes-sigs/kubespray.git -b v2.15.1
+<span class="nb">cd</span> kubespray
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+<span class="c1"># Install dependencies from ``requirements.txt``</span>
+pip install -r requirements.txt
+<span class="c1"># pip install --ignore-installed ruamel.yaml</span>
+
+<span class="c1"># Copy ``inventory/sample`` as ``inventory/mycluster``</span>
+cp -rfp inventory/sample inventory/mycluster
+
+<span class="c1"># Update Ansible inventory file with inventory builder</span>
+<span class="nb">declare</span> -a <span class="nv">IPS</span><span class="o">=(</span><span class="nv">$MASTER</span> <span class="nv">$WORKER1</span> <span class="nv">$WORKER2</span><span class="o">)</span>
+<span class="nb">echo</span> <span class="si">${</span><span class="nv">IPS</span><span class="p">[@]</span><span class="si">}</span>
+<span class="nv">CONFIG_FILE</span><span class="o">=</span>inventory/mycluster/hosts.yaml python contrib/inventory_builder/inventory.py <span class="si">${</span><span class="nv">IPS</span><span class="p">[@]</span><span class="si">}</span>
+
+<span class="c1"># Create public key</span>
+ssh-keygen -t rsa
+
+<span class="c1"># Deploy to master, worker</span>
+scp ~/.ssh/id_rsa.pub <span class="nv">$MASTER</span>:~/.ssh/authorized_keys2
+scp ~/.ssh/id_rsa.pub <span class="nv">$WORKER1</span>:~/.ssh/authorized_keys2
+scp ~/.ssh/id_rsa.pub <span class="nv">$WORKER2</span>:~/.ssh/authorized_keys2
+
+<span class="c1"># ping</span>
+ansible all -i inventory/mycluster/hosts.yaml  -m ping
+</code></pre></div>
+<h2 id="kubespray-configuration">kubespray configuration<a class="headerlink" href="#kubespray-configuration" title="Permanent link">&para;</a></h2>
+<p><code>inventory/mycluster/group_vars/</code></p>
+<ul>
+<li><code>all/all.yml</code>: control plane 관련 설정값</li>
+<li><code>all/docker.yml</code>: 도커 설정값</li>
+<li><code>k8s_cluster/k8s-cluster.yml</code>: 클러스터 전반 (버전, 네트워크, authN, 시스템 리소스 사용량)</li>
+<li><code>k8s_cluster/k8s-net-calico.yml</code>: 네트워크 설정 (Pod, Service cidr, NAT)</li>
+<li>
+<p><code>k8s_cluster/addons.yml</code>: 필수 컴포넌트는 아니나 자주 사용하는 컴포넌트 리스트</p>
+</li>
+<li>
+<p><code>inventory/mycluster/group_vars/k8s-cluster/addons.yml</code></p>
+<ul>
+<li><code>metrics_server_enabled: false</code> --&gt; <code>true</code></li>
+</ul>
+</li>
+</ul>
+<h2 id="cluster-deploy">Cluster Deploy<a class="headerlink" href="#cluster-deploy" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>ansible-playbook -i inventory/mycluster/hosts.yaml  --become --become-user<span class="o">=</span>root cluster.yml
+
+mkdir -p <span class="nv">$HOME</span>/.kube
+sudo cp -i /etc/kubernetes/admin.conf <span class="nv">$HOME</span>/.kube/config
+sudo chown <span class="k">$(</span>id -u<span class="k">)</span>:<span class="k">$(</span>id -g<span class="k">)</span> <span class="nv">$HOME</span>/.kube/config
+
+kubectl get node -owide
+
+<span class="c1"># RBAC for local-path-provisioner</span>
+kubectl create clusterrolebinding localpath-admin --clusterrole cluster-admin --serviceaccount<span class="o">=</span>local-path-storage:local-path-provisioner-service-account
+</code></pre></div>
+<h2 id="cluster-remove-node">Cluster Remove Node<a class="headerlink" href="#cluster-remove-node" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="nv">NODE_NAME</span><span class="o">=</span><span class="s1">&#39;node3&#39;</span>
+ansible-playbook -i inventory/mycluster/hosts.yaml --become --become-user<span class="o">=</span>root -e <span class="nv">node</span><span class="o">=</span><span class="nv">$NODE_NAME</span> remove-node.yml
+
+kubectl get node -owide
+</code></pre></div>
+<h2 id="cluster-add-node">Cluster Add Node<a class="headerlink" href="#cluster-add-node" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>ansible-playbook -i inventory/mycluster/hosts.yaml --become --become-user<span class="o">=</span>root scale.yml
+
+kubectl get node -owide
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

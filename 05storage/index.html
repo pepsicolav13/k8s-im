@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>05 스토리지 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter active" data-path="05storage/">
+<a href="./">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="05">05장 스토리지<a class="headerlink" href="#05" title="Permanent link">&para;</a></h1>
+<h2 id="persistentvolume"><code>PersistentVolume</code><a class="headerlink" href="#persistentvolume" title="Permanent link">&para;</a></h2>
+<h3 id="hostpath-pv">hostPath PV<a class="headerlink" href="#hostpath-pv" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># hostpath-pv.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolume</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-volume</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">storageClassName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">manual</span>
+  <span class="nt">capacity</span><span class="p">:</span>
+    <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
+  <span class="nt">hostPath</span><span class="p">:</span>
+    <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/tmp</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f hostpath-pv.yaml
+<span class="c1"># persistentvolume/my-volume created</span>
+
+kubectl get pv
+<span class="c1"># NAME        CAPACITY  ACCESS MODES   RECLAIM POLICY     STATUS      CLAIM   STORAGECLASS   REASON   AGE             </span>
+<span class="c1"># my-volume   1Gi       RWO            Retain             Available           manual                  12s                </span>
+</code></pre></div>
+<h3 id="nfs-pv">NFS PV<a class="headerlink" href="#nfs-pv" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># nfs-pv.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolume</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-nfs</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">storageClassName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nfs</span>
+  <span class="nt">capacity</span><span class="p">:</span>
+    <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5Gi</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteMany</span>
+  <span class="nt">mountOptions</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">hard</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">nfsvers=4.1</span>
+  <span class="nt">nfs</span><span class="p">:</span>
+    <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/tmp</span>
+    <span class="nt">server</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;NFS_SERVER_IP&gt;</span>
+</code></pre></div>
+<h3 id="awselasticblockstore-pv">awsElasticBlockStore PV<a class="headerlink" href="#awselasticblockstore-pv" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>aws ec2 create-volume --availability-zone<span class="o">=</span>eu-east-1a <span class="se">\</span>
+  --size<span class="o">=</span><span class="m">80</span> --volume-type<span class="o">=</span>gp2
+<span class="c1"># {</span>
+<span class="c1">#     &quot;AvailabilityZone&quot;: &quot;us-east-1a&quot;,</span>
+<span class="c1">#     &quot;Tags&quot;: [],</span>
+<span class="c1">#     &quot;Encrypted&quot;: false,</span>
+<span class="c1">#     &quot;VolumeType&quot;: &quot;gp2&quot;,</span>
+<span class="c1">#     &quot;VolumeId&quot;: &quot;vol-1234567890abcdef0&quot;,</span>
+<span class="c1">#     &quot;State&quot;: &quot;creating&quot;,</span>
+<span class="c1">#     &quot;Iops&quot;: 240,</span>
+<span class="c1">#     &quot;SnapshotId&quot;: &quot;&quot;,</span>
+<span class="c1">#     &quot;CreateTime&quot;: &quot;YYYY-MM-DDTHH:MM:SS.000Z&quot;,</span>
+<span class="c1">#     &quot;Size&quot;: 80</span>
+<span class="c1"># }</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># aws-ebs.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolume</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">aws-ebs</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">capacity</span><span class="p">:</span>
+    <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
+  <span class="nt">awsElasticBlockStore</span><span class="p">:</span>
+    <span class="nt">volumeID</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">&lt;volume-id&gt;</span>
+    <span class="nt">fsType</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ext4</span>
+</code></pre></div>
+<h2 id="persistentvolumeclaim">PersistentVolumeClaim<a class="headerlink" href="#persistentvolumeclaim" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># my-pvc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-pvc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">storageClassName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">manual</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
+  <span class="nt">resources</span><span class="p">:</span>
+    <span class="nt">requests</span><span class="p">:</span>
+      <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f my-pvc.yaml
+<span class="c1"># persistentvolumeclaim/my-pvc created</span>
+
+<span class="c1"># 앞에서 생성한 my-volume을 선점하였습니다.</span>
+kubectl get pvc
+<span class="c1"># NAME     STATUS   VOLUME      CAPACITY   ACCESS MODES   STORAGECLASS   AGE</span>
+<span class="c1"># my-pvc   Bound    my-volume   1Gi        RWO            manual         3s</span>
+
+
+kubectl get pv
+<span class="c1"># NAME        CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM            STORAGECLASS   REASON   AGE</span>
+<span class="c1"># my-volume   1Gi        RWO            Retain           Bound    default/my-pvc   manual                  97s</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># use-pvc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-pvc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span> 
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">volumeMounts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">mountPath</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/test-volume</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+  <span class="nt">volumes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+    <span class="nt">persistentVolumeClaim</span><span class="p">:</span>
+      <span class="nt">claimName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-pvc</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f use-pvc.yaml
+<span class="c1"># pod/use-pvc created</span>
+
+<span class="c1"># 데이터 저장</span>
+kubectl <span class="nb">exec</span> use-pvc -- sh -c <span class="s2">&quot;echo &#39;hello&#39; &gt; /test-volume/hello.txt&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl delete pod use-pvc
+<span class="c1"># pod/use-pvc deleted</span>
+
+kubectl apply -f use-pvc.yaml
+<span class="c1"># pod/use-pvc created</span>
+
+kubectl <span class="nb">exec</span> use-pvc -- cat /test-volume/hello.txt
+<span class="c1"># hello</span>
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete pod use-pvc
+kubectl delete pvc my-pvc
+kubectl delete pv my-volume
+</code></pre></div>
+<h2 id="storageclass"><code>StorageClass</code><a class="headerlink" href="#storageclass" title="Permanent link">&para;</a></h2>
+<h3 id="storageclass_1"><code>StorageClass</code><a class="headerlink" href="#storageclass_1" title="Permanent link">&para;</a></h3>
+<p><a href="https://github.com/rancher/local-path-provisioner">https://github.com/rancher/local-path-provisioner</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># install</span>
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
+kubectl get sc
+
+kubectl get sc local-path -oyaml
+<span class="c1"># apiVersion: storage.k8s.io/v1</span>
+<span class="c1"># kind: StorageClass</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   annotations:</span>
+<span class="c1">#     objectset.rio.cattle.io/id: &quot;&quot;</span>
+<span class="c1">#   ...</span>
+<span class="c1">#   name: local-path</span>
+<span class="c1">#   resourceVersion: &quot;172&quot;</span>
+<span class="c1">#   selfLink: /apis/storage.k8s.io/v1/storageclasses/local-path</span>
+<span class="c1">#   uid: 3aede349-0b94-40c8-b10a-784d38f7c120</span>
+<span class="c1"># provisioner: rancher.io/local-path</span>
+<span class="c1"># reclaimPolicy: Delete</span>
+<span class="c1"># volumeBindingMode: WaitForFirstConsumer</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># my-pvc-sc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-pvc-sc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">storageClassName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">local-path</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteOnce</span>
+  <span class="nt">resources</span><span class="p">:</span>
+    <span class="nt">requests</span><span class="p">:</span>
+      <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f my-pvc-sc.yaml
+<span class="c1"># persistentvolumeclaim/my-pvc-sc created</span>
+
+kubectl get pvc my-pvc-sc
+<span class="c1"># NAME         STATUS    VOLUME     CAPACITY   ACCESS MODES    STORAGECLASS   AGE</span>
+<span class="c1"># my-pvc-sc    Pending                                         local-path     11s</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># use-pvc-sc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-pvc-sc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">volumes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+    <span class="nt">persistentVolumeClaim</span><span class="p">:</span>
+      <span class="nt">claimName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">my-pvc-sc</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">volumeMounts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">mountPath</span><span class="p">:</span> <span class="s">&quot;/usr/share/nginx/html&quot;</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># pod 생성</span>
+kubectl apply -f use-pvc-sc.yaml
+<span class="c1"># pod/use-pvc-sc created</span>
+
+<span class="c1"># STATUS가 Bound로 변경</span>
+kubectl get pvc my-pvc-sc
+<span class="c1"># NAME         STATUS   VOLUME            CAPACITY    ACCESS MODES   STORAGECLASS   AGE</span>
+<span class="c1"># my-pvc-sc    Bound    pvc-479cff32-xx   1Gi         RWO            local-path     92s        </span>
+
+
+kubectl get pv
+<span class="c1"># NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM               STORAGECLASS   REASON   AGE</span>
+<span class="c1"># pvc-5beef658-xxxx   1Gi        RWO            Delete           Bound    default/my-pvc-sc   local-path              20s</span>
+
+
+
+kubectl get pv pvc-5beef658-xxxx -oyaml
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># kind: PersistentVolume</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#     ...</span>
+<span class="c1">#   name: pvc-b1727544-f4be-4cd6-acb7-29eb8f68e84a</span>
+<span class="c1">#   ...</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   ...</span>
+<span class="c1">#   hostPath:</span>
+<span class="c1">#     path: /var/lib/rancher/k3s/storage/pvc-b1727544-f4be-4cd6-acb7-29eb8f68e84a</span>
+<span class="c1">#     type: DirectoryOrCreate</span>
+<span class="c1">#   nodeAffinity:</span>
+<span class="c1">#     required:</span>
+<span class="c1">#       nodeSelectorTerms:</span>
+<span class="c1">#       - matchExpressions:</span>
+<span class="c1">#         - key: kubernetes.io/hostname</span>
+<span class="c1">#           operator: In</span>
+<span class="c1">#           values:</span>
+<span class="c1">#           - worker</span>
+<span class="c1">#    ...</span>
+</code></pre></div>
+<h3 id="nfs-storageclass">NFS StorageClass 설정<a class="headerlink" href="#nfs-storageclass" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>git clone https://github.com/kubernetes-sigs/nfs-ganesha-server-and-external-provisioner.git
+
+<span class="nb">cd</span> nfs-ganesha-server-and-external-provisioner
+
+kubectl create -f deploy/kubernetes/deployment.yaml
+kubectl create -f deploy/kubernetes/rbac.yaml
+kubectl create -f deploy/kubernetes/class.yaml
+kubectl patch storageclass example-nfs -p <span class="s1">&#39;{&quot;metadata&quot;: {&quot;annotations&quot;:{&quot;storageclass.kubernetes.io/is-default-class&quot;:&quot;true&quot;}}}&#39;</span>
+
+kubectl create clusterrolebinding nfs-admin --clusterrole cluster-admin --serviceaccount serviceaccount:default:nfs-provisioner
+
+<span class="c1"># install nfs-util from kubespray</span>
+ansible all -i inventory/mycluster/hosts.yaml -m ansible.builtin.shell --become --become-user<span class="o">=</span>root  -a <span class="s1">&#39;apt update &amp;&amp; sudo apt install -y nfs-client&#39;</span>
+
+
+kubectl get pod
+<span class="c1"># NAME                               READY   STATUS    RESTARTS   AGE</span>
+<span class="c1"># nfs-provisioner-78dc99f5b7-kf8hj   1/1     Running   0          2m15s</span>
+
+
+<span class="c1"># nfs-server-provisioner Service도 있습니다.</span>
+kubectl get svc
+<span class="c1"># NAME              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)             AGE</span>
+<span class="c1"># kubernetes        ClusterIP   10.233.0.1     &lt;none&gt;        443/TCP             17h</span>
+<span class="c1"># nfs-provisioner   ClusterIP   10.233.16.80   &lt;none&gt;        2049/TCP,2049/...   3m22s</span>
+
+
+<span class="c1"># 새로운 nfs StorageClass 생성</span>
+kubectl get sc
+<span class="c1"># NAME          PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE</span>
+<span class="c1"># example-nfs   example.com/nfs         Delete          Immediate              false                  3m</span>
+<span class="c1"># local-path    rancher.io/local-path   Delete          WaitForFirstConsumer   false                  9m11s</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># nfs-sc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">PersistentVolumeClaim</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nfs-sc</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">storageClassName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">example-nfs</span>
+  <span class="c1"># accessModes를 ReadWriteMany로 변경</span>
+  <span class="nt">accessModes</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">ReadWriteMany</span>
+  <span class="nt">resources</span><span class="p">:</span>
+    <span class="nt">requests</span><span class="p">:</span>
+      <span class="nt">storage</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1Gi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f nfs-sc.yaml
+<span class="c1"># persistentvolumeclaim/nfs-sc created</span>
+
+<span class="c1"># pvc 리소스 확인</span>
+kubectl get pvc
+<span class="c1"># NAME        STATUS   VOLUME             CAPACITY   ACCESS MODES  ...</span>
+<span class="c1"># my-pvc-sc   Bound    pvc-b1727544-xxx   1Gi        RWO           ...</span>
+<span class="c1"># nfs-sc      Bound    pvc-49fea9cf-xxx   1Gi        RWO           ...</span>
+
+<span class="c1"># pv 리소스 확인</span>
+kubectl get pv pvc-49fea9cf-xxx
+<span class="c1"># NAME                CAPACITY   ACCESS MODES   RECLAIM  POLICY   STATUS    CLAIM            STORAGECLASS   REASON  AGE</span>
+<span class="c1"># pvc-49fea9cf-xxx    1Gi        RWX            Delete            Bound     default/nfs-sc   nfs                    5m</span>
+
+
+kubectl get pv pvc-49fea9cf-xxx -oyaml
+<span class="c1"># apiVersion: v1</span>
+<span class="c1"># kind: PersistentVolume</span>
+<span class="c1"># metadata:</span>
+<span class="c1">#   ...</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   accessModes:</span>
+<span class="c1">#   - ReadWriteMany</span>
+<span class="c1">#   capacity:</span>
+<span class="c1">#     storage: 1Gi</span>
+<span class="c1">#   claimRef:</span>
+<span class="c1">#     apiVersion: v1</span>
+<span class="c1">#     kind: PersistentVolumeClaim</span>
+<span class="c1">#     name: nfs-sc</span>
+<span class="c1">#     namespace: default</span>
+<span class="c1">#     resourceVersion: &quot;10084380&quot;</span>
+<span class="c1">#     uid: 2e95f6c4-2b43-4375-808f-0c93e44a1003</span>
+<span class="c1">#   mountOptions:</span>
+<span class="c1">#   - vers=3</span>
+<span class="c1">#   nfs:</span>
+<span class="c1">#     path: /export/pvc-2e95f6c4-2b43-4375-808f-0c93e44a1003</span>
+<span class="c1">#     server: 10.43.248.122</span>
+<span class="c1">#   persistentVolumeReclaimPolicy: Delete</span>
+<span class="c1">#   storageClassName: nfs</span>
+<span class="c1">#   volumeMode: Filesystem</span>
+<span class="c1"># status:</span>
+<span class="c1">#   phase: Bound</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># use-nfs-sc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-nfs-sc-node1</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">volumes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+    <span class="nt">persistentVolumeClaim</span><span class="p">:</span>
+      <span class="nt">claimName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nfs-sc</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">volumeMounts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">mountPath</span><span class="p">:</span> <span class="s">&quot;/usr/share/nginx/html&quot;</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+  <span class="nt">nodeSelector</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/hostname</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node1</span>
+<span class="nn">---</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">use-nfs-sc-node2</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">volumes</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+    <span class="nt">persistentVolumeClaim</span><span class="p">:</span>
+      <span class="nt">claimName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nfs-sc</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">volumeMounts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">mountPath</span><span class="p">:</span> <span class="s">&quot;/usr/share/nginx/html&quot;</span>
+      <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">vol</span>
+  <span class="nt">nodeSelector</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/hostname</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">node2</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f use-nfs-sc.yaml
+<span class="c1"># pod/use-nfs-sc-node1 created</span>
+<span class="c1"># pod/use-nfs-sc-node2 created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME               READY  STATUS    RESTARTS  AGE   IP          NODE</span>
+<span class="c1"># ...</span>
+<span class="c1"># use-nfs-sc-node1  1/1    Running   0         19s   10.42.0.8   node1</span>
+<span class="c1"># use-nfs-sc-node2  1/1    Running   0         19s   10.42.0.52  node2</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># master Pod에 index.html 파일을 생성합니다.</span>
+kubectl <span class="nb">exec</span> use-nfs-sc-node1 -- sh -c <span class="se">\</span>
+      <span class="s2">&quot;echo &#39;hello world&#39; &gt;&gt; /usr/share/nginx/html/index.html&quot;</span>
+
+<span class="c1"># worker Pod에서 호출을 합니다.</span>
+kubectl <span class="nb">exec</span> use-nfs-sc-node2 -- curl -s localhost
+<span class="c1"># hello world</span>
+</code></pre></div>
+<h3 id="clean-up_1">Clean up<a class="headerlink" href="#clean-up_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete pod use-nfs-sc-node1
+kubectl delete pod use-nfs-sc-node2
+kubectl delete pod use-pvc-sc
+kubectl delete pvc nfs-sc
+</code></pre></div>
+<h2 id="_1">쿠버네티스 스토리지 활용<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>helm fetch --untar bitnami/minio
+
+vim minio/values.yaml
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="nn">...</span>
+<span class="nt">accessKey</span><span class="p">:</span> 
+  <span class="nt">password</span><span class="p">:</span> <span class="s">&quot;myaccesskey&quot;</span>
+<span class="nt">secretKey</span><span class="p">:</span> 
+  <span class="nt">password</span><span class="p">:</span> <span class="s">&quot;mysecretkey&quot;</span>
+<span class="nn">...</span>
+<span class="nt">persistence</span><span class="p">:</span>
+  <span class="nt">storageClass</span><span class="p">:</span> <span class="s">&quot;example-nfs&quot;</span>
+  <span class="nt">accessMode</span><span class="p">:</span> <span class="s">&quot;ReadWriteMany&quot;</span>
+  <span class="nt">size</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2Gi</span>
+
+<span class="nt">ingress</span><span class="p">:</span>
+  <span class="c1"># false --&gt; true</span>
+  <span class="nt">enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>
+  <span class="nt">labels</span><span class="p">:</span> <span class="p p-Indicator">{}</span>
+
+  <span class="c1"># annotation 설정</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">minio.10.0.1.1.sslip.io</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>helm install minio ./minio
+
+kubectl get pod
+<span class="c1"># NAME                      READY   STATUS             RESTARTS   AGE</span>
+<span class="c1"># minio-7f58448457-vctrp    1/1     Running            0          2m</span>
+
+kubectl get pvc
+<span class="c1"># NAME     STATUS   VOLUME             CAPACITY   ACCESS MODES  STORAGECLASS    AGE</span>
+<span class="c1"># minio    Bound    pvc-cff81820-xxx   10Gi       RWO           example-nfs     2m40s</span>
+
+kubectl get pv
+<span class="c1"># NAME               CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS  CLAIM           STORAGECLASS   REASON   AGE </span>
+<span class="c1"># pvc-cff81820-xxx   10Gi       RWO            Delete           Bound   default/minio   nfs                     3m</span>
+</code></pre></div>
+<h3 id="clean-up_2">Clean up<a class="headerlink" href="#clean-up_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>helm delete minio
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>10 로깅 & 모니터링 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter active" data-path="10log-mon/">
+<a href="./">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="09">09장 로깅 &amp; 모니터링<a class="headerlink" href="#09" title="Permanent link">&para;</a></h1>
+<h3 id="_1">클러스터 레벨 로깅 원리<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>docker logs &lt;CONTAINER_ID&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>/var/lib/docker/containers/&lt;CONTAINER_ID&gt;/&lt;CONTAINER_ID&gt;-json.log
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># nginx라는 컨테이너를 하나 실행하고 CONTAINER_ID 값을 복사합니다.</span>
+docker run -d nginx
+<span class="c1"># 4373b7e095215c23057b1dc4423527239e56a33dbd</span>
+
+<span class="c1"># docker 명령을 통한 로그 확인</span>
+docker logs 4373b7e095215c23057b1dc4423527239e56a33dbd
+<span class="c1"># /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will ...</span>
+<span class="c1"># /docker-entrypoint.sh: Looking for shell scripts in /docker-...</span>
+<span class="c1"># /docker-entrypoint.sh: Launching /docker-entrypoint.d/...</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># 호스트 서버의 로그 파일 확인</span>
+sudo tail /var/lib/docker/containers/4373b7e095215c23057b1dc4423527239e56a33dbd/4373b7e095215c23057b1dc4423527239e56a33dbd-json.log
+<span class="c1"># {&quot;log&quot;:&quot;/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, \</span>
+<span class="c1"># will attempt to perform configuration\n&quot;,&quot;stream&quot;:&quot;stdout&quot;,\</span>
+<span class="c1"># &quot;time&quot;:&quot;2020-07-11T03:22:11.817939191Z&quot;}</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># 컨테이너 정리</span>
+docker stop 4373b7e095215c23057b1dc4423527239e56a33dbd
+docker rm 4373b7e095215c23057b1dc4423527239e56a33dbd
+</code></pre></div>
+<h3 id="elastic-stack">Elastic Stack<a class="headerlink" href="#elastic-stack" title="Permanent link">&para;</a></h3>
+<p><a href="https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-quickstart.html">Elastic Cloud K8s</a></p>
+<div class="highlight"><pre><span></span><code>kubectl apply -f https://download.elastic.co/downloads/eck/1.6.0/all-in-one.yaml
+
+cat <span class="s">&lt;&lt;EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: elasticsearch.k8s.elastic.co/v1</span>
+<span class="s">kind: Elasticsearch</span>
+<span class="s">metadata:</span>
+<span class="s">  name: quickstart</span>
+<span class="s">spec:</span>
+<span class="s">  version: 7.13.1</span>
+<span class="s">  nodeSets:</span>
+<span class="s">  - name: default</span>
+<span class="s">    count: 1</span>
+<span class="s">    config:</span>
+<span class="s">      node.store.allow_mmap: false</span>
+<span class="s">EOF</span>
+
+kubectl get pods
+kubectl get service quickstart-es-http
+
+<span class="nv">PASSWORD</span><span class="o">=</span><span class="k">$(</span>kubectl get secret quickstart-es-elastic-user -o go-template<span class="o">=</span><span class="s1">&#39;{{.data.elastic | base64decode}}&#39;</span><span class="k">)</span>
+<span class="nb">echo</span> <span class="nv">$PASSWORD</span>
+
+
+cat <span class="s">&lt;&lt;EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: kibana.k8s.elastic.co/v1</span>
+<span class="s">kind: Kibana</span>
+<span class="s">metadata:</span>
+<span class="s">  name: quickstart</span>
+<span class="s">spec:</span>
+<span class="s">  version: 7.13.1</span>
+<span class="s">  count: 1</span>
+<span class="s">  elasticsearchRef:</span>
+<span class="s">    name: quickstart</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># kibana.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">cert-manager.io/cluster-issuer</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">http-issuer</span>
+    <span class="nt">nginx.ingress.kubernetes.io/backend-protocol</span><span class="p">:</span> <span class="s">&quot;HTTPS&quot;</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kibana</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kibana.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">quickstart-kb-http</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">5601</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+  <span class="nt">tls</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">kibana.10.0.1.1.sslip.io</span>
+    <span class="nt">secretName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">kibana-tls</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f kibana.yaml
+
+kubectl get secret quickstart-es-elastic-user -o<span class="o">=</span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.elastic}&#39;</span> <span class="p">|</span> base64 --decode<span class="p">;</span> <span class="nb">echo</span>
+<span class="c1"># enter kibana</span>
+<span class="c1"># - user: elastic</span>
+<span class="c1"># - pass: above password</span>
+
+
+helm repo add fluent https://fluent.github.io/helm-charts
+
+helm fetch --untar fluent/fluent-bit
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>  <span class="nt">outputs</span><span class="p">:</span> <span class="p p-Indicator">|</span>
+    <span class="no">[OUTPUT]</span>
+        <span class="no">Name es</span>
+        <span class="no">Match kube.*</span>
+        <span class="no">Host quickstart-es-http</span>
+        <span class="no">Logstash_Format On</span>
+        <span class="no">HTTP_User elastic</span>
+        <span class="no">HTTP_Passwd infL94b8RL2N3KQ3S8y707UZ</span>
+        <span class="no">tls On</span>
+        <span class="no">tls.verify Off</span>
+        <span class="no">tls.debug 1</span>
+        <span class="no">Retry_Limit False</span>
+
+    <span class="no">[OUTPUT]</span>
+        <span class="no">Name es</span>
+        <span class="no">Match host.*</span>
+        <span class="no">Host quickstart-es-http</span>
+        <span class="no">Logstash_Format On</span>
+        <span class="no">Logstash_Prefix node</span>
+        <span class="no">HTTP_User elastic</span>
+        <span class="no">HTTP_Passwd infL94b8RL2N3KQ3S8y707UZ</span>
+        <span class="no">tls On</span>
+        <span class="no">tls On</span>
+        <span class="no">tls.verify Off</span>
+        <span class="no">tls.debug 1</span>
+        <span class="no">Retry_Limit False</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># fluent-bit 수정</span>
+helm install log ./fluent-bit
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete ingress kibana
+kubectl delete kibana quickstart
+kubectl delete elasticsearch quickstart
+helm delete log
+kubectl delete -f https://download.elastic.co/downloads/eck/1.6.0/all-in-one.yaml
+</code></pre></div>
+<h2 id="_2">리소스 모니터링 시스템 구축<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="_3">컨테이너 메트릭 정보 수집 방법<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>docker run -d nginx
+<span class="c1"># 4373b7e095215c23057b1dc4423527239e56a33dbd</span>
+
+docker stats 4373b7e095215c23057b1dc4423527239e56a33dbd
+<span class="c1"># CONTAINER ID    NAME     CPU %     MEM USAGE / LIMIT     MEM    ...    </span>
+<span class="c1"># 4af9f73eb06f    dreamy   0.00%     3.227MiB / 7.773GiB   0.04%  ...</span>
+
+docker stop 4373b7e095215c23057b1dc4423527239e56a33dbd
+docker rm 4373b7e095215c23057b1dc4423527239e56a33dbd
+</code></pre></div>
+<h3 id="prometheus-grafana">Prometheus &amp; Grafana 구축<a class="headerlink" href="#prometheus-grafana" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm fetch --untar prometheus-community/kube-prometheus-stack
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># kube-prometheus-stack/values.yaml</span>
+<span class="nt">grafana</span><span class="p">:</span>
+  <span class="l l-Scalar l-Scalar-Plain">...</span>
+  <span class="l l-Scalar l-Scalar-Plain">ingress</span><span class="p p-Indicator">:</span>
+    <span class="nt">enabled</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">true</span>   <span class="c1"># 기존 false</span>
+    <span class="nt">annotations</span><span class="p">:</span>
+      <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>   <span class="c1"># 추가</span>
+    <span class="nt">hosts</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">grafana.10.0.1.1.sslip.io</span>            <span class="c1"># 공인IP 입력</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>helm install prom ./kube-prometheus-stack
+<span class="c1"># ...</span>
+
+watch kubectl get pod
+</code></pre></div>
+<h3 id="clean-up_1">Clean up<a class="headerlink" href="#clean-up_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>helm delete prom
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

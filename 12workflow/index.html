@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>12 워크플로우 관리 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter" data-path="07resource-mgt/">
+<a href="../07resource-mgt/">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter active" data-path="12workflow/">
+<a href="./">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="11">11장 워크플로우 관리<a class="headerlink" href="#11" title="Permanent link">&para;</a></h1>
+<h2 id="argo-workflow">Argo workflow<a class="headerlink" href="#argo-workflow" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>kubectl create namespace argo
+
+kubectl apply -n argo -f https://raw.githubusercontent.com/argoproj/argo-workflows/stable/manifests/quick-start-postgres.yaml
+
+kubectl create rolebinding default-admin --clusterrole<span class="o">=</span>admin <span class="se">\</span>
+      --serviceaccount<span class="o">=</span>default:default
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># argo-ingress.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1beta1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Ingress</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">annotations</span><span class="p">:</span>
+    <span class="nt">kubernetes.io/ingress.class</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-server</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">rules</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">host</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo.10.0.1.1.sslip.io</span>
+    <span class="nt">http</span><span class="p">:</span>
+      <span class="nt">paths</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">backend</span><span class="p">:</span>
+          <span class="nt">serviceName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argo-server</span>
+          <span class="nt">servicePort</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">2746</span>
+        <span class="nt">path</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">/</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f argocd-ingress.yaml
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># single-job.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Workflow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-world-</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">entrypoint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+  <span class="nt">templates</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+    <span class="nt">container</span><span class="p">:</span>
+      <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">docker/whalesay</span>
+      <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">cowsay</span><span class="p p-Indicator">]</span>
+      <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;hello</span><span class="nv"> </span><span class="s">world&quot;</span><span class="p p-Indicator">]</span>
+      <span class="nt">resources</span><span class="p">:</span>
+        <span class="nt">limits</span><span class="p">:</span>
+          <span class="nt">memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">32Mi</span>
+          <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">100m</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Workflow 생성</span>
+kubectl create -f single-job.yaml
+<span class="c1"># workflow.argoproj.io/hello-world-tcnjj created</span>
+
+kubectl get wf
+<span class="c1"># NAME                STATUS      AGE</span>
+<span class="c1"># hello-world-tcnjj   Succeeded   17s</span>
+
+kubectl get pod
+<span class="c1"># NAME                READY   STATUS      RESTARTS   AGE</span>
+<span class="c1"># hello-world-tcnjj   0/2     Completed   0          31s</span>
+
+kubectl logs hello-world-tcnjj -c main
+<span class="c1">#  _____________</span>
+<span class="c1"># &lt; hello world &gt;</span>
+<span class="c1">#  -------------</span>
+<span class="c1">#     \</span>
+<span class="c1">#      \</span>
+<span class="c1">#       \</span>
+<span class="c1">#                     ##        .</span>
+<span class="c1">#               ## ## ##       ==</span>
+<span class="c1">#            ## ## ## ##      ===</span>
+<span class="c1">#        /&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;___/ ===</span>
+<span class="c1">#   ~~~ {~~ ~~~~ ~~~ ~~~~ ~~ ~ /  ===- ~~~</span>
+<span class="c1">#        \______ o          __/</span>
+<span class="c1">#         \    \        __/</span>
+<span class="c1">#           \____\______/</span>
+<span class="c1"># </span>
+<span class="c1"># </span>
+<span class="c1"># Hello from Docker!</span>
+<span class="c1"># This message shows that your installation appears to be working </span>
+</code></pre></div>
+<h3 id="_1">파라미터 전달<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># param.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Workflow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-world-parameters-</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">entrypoint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+  <span class="nt">arguments</span><span class="p">:</span>
+    <span class="nt">parameters</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+      <span class="nt">value</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello world through param</span>
+
+  <span class="nt">templates</span><span class="p">:</span>
+  <span class="c1">###############</span>
+  <span class="c1"># entrypoint</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+    <span class="nt">inputs</span><span class="p">:</span>
+      <span class="nt">parameters</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+    <span class="nt">container</span><span class="p">:</span>
+      <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">docker/whalesay</span>
+      <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">cowsay</span><span class="p p-Indicator">]</span>
+      <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;{{inputs.parameters.message}}&quot;</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl create -f param.yaml
+</code></pre></div>
+<h3 id="sequential-step">Sequential step 실행<a class="headerlink" href="#sequential-step" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># sequential.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Workflow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">serial-step-</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">entrypoint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-step</span>
+  <span class="nt">templates</span><span class="p">:</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># template job</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+    <span class="nt">inputs</span><span class="p">:</span>
+      <span class="nt">parameters</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+    <span class="nt">container</span><span class="p">:</span>
+      <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">docker/whalesay</span>
+      <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">cowsay</span><span class="p p-Indicator">]</span>
+      <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;{{inputs.parameters.message}}&quot;</span><span class="p p-Indicator">]</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># entrypoint</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-step</span>
+    <span class="c1"># 순차 실행</span>
+    <span class="nt">steps</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello1</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello1&quot;</span>
+    <span class="p p-Indicator">-</span> <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello2</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello2&quot;</span>
+    <span class="p p-Indicator">-</span> <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello3</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello3&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl create -f sequential.yaml
+</code></pre></div>
+<h3 id="parallel-step">Parallel step 실행<a class="headerlink" href="#parallel-step" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># parallel.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Workflow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">parallel-steps-</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">entrypoint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-step</span>
+  <span class="nt">templates</span><span class="p">:</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># template job</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+    <span class="nt">inputs</span><span class="p">:</span>
+      <span class="nt">parameters</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+    <span class="nt">container</span><span class="p">:</span>
+      <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">docker/whalesay</span>
+      <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">cowsay</span><span class="p p-Indicator">]</span>
+      <span class="nt">args</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;{{inputs.parameters.message}}&quot;</span><span class="p p-Indicator">]</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># entrypoint</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello-step</span>
+    <span class="c1"># 병렬 실행</span>
+    <span class="nt">steps</span><span class="p">:</span>
+    <span class="p p-Indicator">-</span> <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello1</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello1&quot;</span>
+    <span class="p p-Indicator">-</span> <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello2</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello2&quot;</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">hello3</span>        <span class="c1"># 기존 double dash에서 single dash로 변경</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">whalesay</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span>
+          <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+            <span class="nt">value</span><span class="p">:</span> <span class="s">&quot;hello3&quot;</span>
+</code></pre></div>
+<ul>
+<li>double-dash: 앞의 job을 이어서 순차적으로 실행(직렬)</li>
+<li>single-dash: 앞의 job과 동시에 병렬적으로 실행(병렬)</li>
+</ul>
+<div class="highlight"><pre><span></span><code>kubectl create -f parallel.yaml
+</code></pre></div>
+<h3 id="dag">복잡한 DAG 실행<a class="headerlink" href="#dag" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># dag.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Workflow</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">generateName</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">dag-diamond-</span>
+  <span class="nt">namespace</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">default</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">entrypoint</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">diamond</span>
+  <span class="nt">templates</span><span class="p">:</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># template job</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">echo</span>
+    <span class="nt">inputs</span><span class="p">:</span>
+      <span class="nt">parameters</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">message</span>
+    <span class="nt">container</span><span class="p">:</span>
+      <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">alpine:3.7</span>
+      <span class="nt">command</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">echo</span><span class="p p-Indicator">,</span> <span class="s">&quot;{{inputs.parameters.message}}&quot;</span><span class="p p-Indicator">]</span>
+
+  <span class="c1">###############</span>
+  <span class="c1"># entrypoint</span>
+  <span class="c1">###############</span>
+  <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">diamond</span>
+    <span class="c1"># DAG 구성</span>
+    <span class="nt">dag</span><span class="p">:</span>
+      <span class="nt">tasks</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">A</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">echo</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span> <span class="p p-Indicator">[{</span><span class="nt">name</span><span class="p">:</span> <span class="nv">message</span><span class="p p-Indicator">,</span><span class="nt"> value</span><span class="p">:</span> <span class="nv">A</span><span class="p p-Indicator">}]</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">B</span>
+        <span class="nt">dependencies</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">A</span><span class="p p-Indicator">]</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">echo</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span> <span class="p p-Indicator">[{</span><span class="nt">name</span><span class="p">:</span> <span class="nv">message</span><span class="p p-Indicator">,</span><span class="nt"> value</span><span class="p">:</span> <span class="nv">B</span><span class="p p-Indicator">}]</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">C</span>
+        <span class="nt">dependencies</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">A</span><span class="p p-Indicator">]</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">echo</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span> <span class="p p-Indicator">[{</span><span class="nt">name</span><span class="p">:</span> <span class="nv">message</span><span class="p p-Indicator">,</span><span class="nt"> value</span><span class="p">:</span> <span class="nv">C</span><span class="p p-Indicator">}]</span>
+      <span class="p p-Indicator">-</span> <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">D</span>
+        <span class="nt">dependencies</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="nv">B</span><span class="p p-Indicator">,</span> <span class="nv">C</span><span class="p p-Indicator">]</span>
+        <span class="nt">template</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">echo</span>
+        <span class="nt">arguments</span><span class="p">:</span>
+          <span class="nt">parameters</span><span class="p">:</span> <span class="p p-Indicator">[{</span><span class="nt">name</span><span class="p">:</span> <span class="nv">message</span><span class="p p-Indicator">,</span><span class="nt"> value</span><span class="p">:</span> <span class="nv">D</span><span class="p p-Indicator">}]</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl create -f dag.yaml
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete wf --all
+kubectl delete -n argo -f https://raw.githubusercontent.com/argoproj/argo/v2.8.1/manifests/install.yaml
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>

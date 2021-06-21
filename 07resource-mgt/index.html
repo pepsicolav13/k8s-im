@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<title>07 리소스 관리 - 쿠버네티스 중급</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<meta name="generator" content="mkdocs-1.1.2, mkdocs-gitbook-1.0.7">
+
+<link rel="shortcut icon" href="../images/favicon.ico" type="image/x-icon">
+<meta name="HandheldFriendly" content="true"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta rel="next" href="" />
+<link href="../css/style.min.css" rel="stylesheet"> 
+</head>
+
+<body>
+<div class="book">
+<div class="book-summary">
+
+<nav role="navigation">
+<ul class="summary">
+<li>
+<a href=".." target="_blank" class="custom-link">쿠버네티스 중급</a>
+</li>
+<li class="divider"></li>
+<li class="chapter" data-path="01overview/">
+<a href="../01overview/">01 Overview</a>
+<li class="chapter" data-path="02kubespray/">
+<a href="../02kubespray/">02 Kubespray</a>
+<li class="chapter" data-path="03helm/">
+<a href="../03helm/">03 Helm 패키지 매니저</a>
+<li class="chapter" data-path="04ingress/">
+<a href="../04ingress/">04 Ingress</a>
+<li class="chapter" data-path="05storage/">
+<a href="../05storage/">05 스토리지</a>
+<li class="chapter" data-path="06scheduling/">
+<a href="../06scheduling/">06 고급 스케줄링</a>
+<li class="chapter active" data-path="07resource-mgt/">
+<a href="./">07 리소스 관리</a>
+<li class="chapter" data-path="08access-control/">
+<a href="../08access-control/">08 접근제어</a>
+<li class="chapter" data-path="09crd/">
+<a href="../09crd/">09 사용자정의 리소스</a>
+<li class="chapter" data-path="10log-mon/">
+<a href="../10log-mon/">10 로깅 & 모니터링</a>
+<li class="chapter" data-path="11cicd/">
+<a href="../11cicd/">11 CI / CD</a>
+<li class="chapter" data-path="12workflow/">
+<a href="../12workflow/">12 워크플로우 관리</a>
+<li class="divider"></li>
+
+
+
+<li><a href="http://www.mkdocs.org">
+Published with MkDocs
+</a></li>
+
+<li><a href="https://github.com/GitbookIO/theme-default">
+Theme by GitBook
+</a></li>
+</ul>
+
+</nav>
+
+</div> <!-- end of book-summary -->
+
+<div class="book-body">
+<div class="body-inner">
+<div class="book-header" role="navigation">
+
+<!-- Title -->
+<h1>
+<i class="fa fa-circle-o-notch fa-spin"></i>
+<a href="." ></a>
+</h1>
+
+</div> <!-- end of book-header -->
+
+<div class="page-wrapper" tabindex="-1" role="main">
+<div class="page-inner">
+
+<section class="normal markdown-section">
+
+
+
+<h1 id="07">07장 리소스 관리<a class="headerlink" href="#07" title="Permanent link">&para;</a></h1>
+<h2 id="_1">리소스 관리<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<h3 id="limitrange">LimitRange<a class="headerlink" href="#limitrange" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl run mynginx --image nginx
+
+kubectl get pod mynginx -oyaml <span class="p">|</span> grep resources
+<span class="c1"># resources: {}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># limit-range.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">LimitRange</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">limit-range</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">limits</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">default</span><span class="p">:</span>
+      <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">400m</span>
+      <span class="nt">memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">512Mi</span>
+    <span class="nt">defaultRequest</span><span class="p">:</span>
+      <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">300m</span>
+      <span class="nt">memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">256Mi</span>
+    <span class="nt">max</span><span class="p">:</span>
+      <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600m</span>
+      <span class="nt">memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">600Mi</span>
+    <span class="nt">min</span><span class="p">:</span>
+      <span class="nt">cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">200m</span>
+      <span class="nt">memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">200Mi</span>
+    <span class="nt">type</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Container</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f limit-range.yaml
+<span class="c1"># limitrange/limit-range created</span>
+
+kubectl run nginx-lr --image nginx
+<span class="c1"># pod/nginx-lr created</span>
+
+kubectl get pod nginx-lr -oyaml <span class="p">|</span> grep -A <span class="m">6</span> resources
+<span class="c1">#    resources:</span>
+<span class="c1">#      limits:</span>
+<span class="c1">#        cpu: 400m</span>
+<span class="c1">#        memory: 512Mi</span>
+<span class="c1">#      requests:</span>
+<span class="c1">#        cpu: 300m</span>
+<span class="c1">#        memory: 256Mi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># pod-exceed.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">Pod</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">pod-exceed</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">containers</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">image</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">nginx</span>
+    <span class="nt">resources</span><span class="p">:</span>
+      <span class="nt">limits</span><span class="p">:</span>
+        <span class="nt">cpu</span><span class="p">:</span> <span class="s">&quot;700m&quot;</span>
+        <span class="nt">memory</span><span class="p">:</span> <span class="s">&quot;700Mi&quot;</span>
+      <span class="nt">requests</span><span class="p">:</span>
+        <span class="nt">cpu</span><span class="p">:</span> <span class="s">&quot;300m&quot;</span>
+        <span class="nt">memory</span><span class="p">:</span> <span class="s">&quot;256Mi&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl apply -f pod-exceed.yaml
+<span class="c1"># Error from server (Forbidden): error when creating &quot;pod-exceed.yaml&quot;: pods &quot;pod-exceed&quot; is forbidden: [maximum cpu usage per Container is 600m, but limit is 700m, maximum memory usage per Container is 600Mi, but limit is 700Mi]</span>
+</code></pre></div>
+<h3 id="clean-up">Clean up<a class="headerlink" href="#clean-up" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete limitrange limit-range
+kubectl delete pod nginx-lr mynginx
+</code></pre></div>
+<h3 id="resourcequota">ResourceQuota<a class="headerlink" href="#resourcequota" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># res-quota.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">ResourceQuota</span>
+<span class="nt">metadata</span><span class="p">:</span>
+  <span class="nt">name</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">res-quota</span>
+<span class="nt">spec</span><span class="p">:</span>
+  <span class="nt">hard</span><span class="p">:</span>
+    <span class="nt">limits.cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">700m</span>
+    <span class="nt">limits.memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">800Mi</span>
+    <span class="nt">requests.cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">500m</span>
+    <span class="nt">requests.memory</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">700Mi</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># ResourceQuota 생성</span>
+kubectl apply -f res-quota.yaml
+<span class="c1"># resourcequota/res-quota created </span>
+
+<span class="c1"># Pod 생성 limit CPU 600m</span>
+cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: v1</span>
+<span class="s">kind: Pod</span>
+<span class="s">metadata:</span>
+<span class="s">  name: rq-1</span>
+<span class="s">spec:</span>
+<span class="s">  containers:</span>
+<span class="s">  - image: nginx</span>
+<span class="s">    name: nginx</span>
+<span class="s">    resources:</span>
+<span class="s">      limits:</span>
+<span class="s">        cpu: &quot;600m&quot;</span>
+<span class="s">        memory: &quot;600Mi&quot;</span>
+<span class="s">      requests:</span>
+<span class="s">        cpu: &quot;300m&quot;</span>
+<span class="s">        memory: &quot;300Mi&quot;</span>
+<span class="s">EOF</span>
+<span class="c1"># pod/rq-1 created</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: v1</span>
+<span class="s">kind: Pod</span>
+<span class="s">metadata:</span>
+<span class="s">  name: rq-2</span>
+<span class="s">spec:</span>
+<span class="s">  containers:</span>
+<span class="s">  - image: nginx</span>
+<span class="s">    name: nginx</span>
+<span class="s">    resources:</span>
+<span class="s">      limits:</span>
+<span class="s">        cpu: &quot;600m&quot;</span>
+<span class="s">        memory: &quot;600Mi&quot;</span>
+<span class="s">      requests:</span>
+<span class="s">        cpu: &quot;300m&quot;</span>
+<span class="s">        memory: &quot;300Mi&quot;</span>
+<span class="s">EOF</span>
+<span class="c1"># Error from server (Forbidden): error when creating &quot;STDIN&quot;: pods &quot;rq-2&quot; is forbidden: exceeded quota: res-quota, requested: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, used: limits.cpu=600m,limits.memory=600Mi,requests.cpu=300m, limited: limits.cpu=700m,limits.memory=800Mi,requests.cpu=500m</span>
+</code></pre></div>
+<h3 id="clean-up_1">Clean up<a class="headerlink" href="#clean-up_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete resourcequota res-quota
+kubectl delete pod rq-1
+</code></pre></div>
+<h2 id="_2">노드 관리<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="cordon">Cordon<a class="headerlink" href="#cordon" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl cordon &lt;NODE&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 먼저 worker의 상태를 확인합니다.</span>
+kubectl get node node2 -oyaml <span class="p">|</span> grep spec -A <span class="m">5</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   podCIDR: 10.42.0.0/24</span>
+<span class="c1">#   podCIDRs:</span>
+<span class="c1">#   - 10.42.0.0/24</span>
+<span class="c1"># status:</span>
+
+<span class="c1"># worker를 cordon시킵니다.</span>
+kubectl cordon node2
+<span class="c1"># node/node2 cordoned</span>
+
+kubectl get node node2 -oyaml <span class="p">|</span> grep taints -A <span class="m">5</span>
+<span class="c1">#   taints:</span>
+<span class="c1">#   - effect: NoSchedule</span>
+<span class="c1">#     key: node.kubernetes.io/unschedulable</span>
+<span class="c1">#     timeAdded: &quot;2021-06-13T09:14:19Z&quot;</span>
+<span class="c1">#   unschedulable: true</span>
+<span class="c1"># status:</span>
+
+<span class="c1"># worker의 상태를 확인합니다.</span>
+kubectl get node
+<span class="c1"># NAME    STATUS                     ROLES    AGE   VERSION</span>
+<span class="c1"># node1   Ready                      master   21h   v1.19.9</span>
+<span class="c1"># node2   Ready,SchedulingDisabled   &lt;none&gt;   21h   v1.19.9</span>
+<span class="c1"># node3   Ready                      &lt;none&gt;   20h   v1.19.9</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: apps/v1</span>
+<span class="s">kind: ReplicaSet</span>
+<span class="s">metadata:</span>
+<span class="s">  name: rs</span>
+<span class="s">spec:</span>
+<span class="s">  replicas: 5</span>
+<span class="s">  selector:</span>
+<span class="s">    matchLabels:</span>
+<span class="s">      run: rs</span>
+<span class="s">  template:</span>
+<span class="s">    metadata:</span>
+<span class="s">      labels:</span>
+<span class="s">        run: rs</span>
+<span class="s">    spec:</span>
+<span class="s">      containers:</span>
+<span class="s">      - name: nginx</span>
+<span class="s">        image: nginx</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># No Pod in node2</span>
+kubectl get pod -o wide
+<span class="c1"># NAME                               READY   STATUS              RESTARTS   AGE     IP             NODE    NOMINATED NODE   READINESS GATES</span>
+<span class="c1"># nfs-provisioner-78dc99f5b7-kf8hj   1/1     Running             0          3h45m   10.233.92.32   node3   &lt;none&gt;           &lt;none&gt;</span>
+<span class="c1"># rs-7p7n2                           0/1     ContainerCreating   0          6s      &lt;none&gt;         node1   &lt;none&gt;           &lt;none&gt;</span>
+<span class="c1"># rs-82jq6                           1/1     Running             0          6s      10.233.90.13   node1   &lt;none&gt;           &lt;none&gt;</span>
+<span class="c1"># rs-8prv8                           1/1     Running             0          6s      10.233.92.53   node3   &lt;none&gt;           &lt;none&gt;</span>
+<span class="c1"># rs-cs58q                           0/1     ContainerCreating   0          6s      &lt;none&gt;         node3   &lt;none&gt;           &lt;none&gt;</span>
+<span class="c1"># rs-wb597                           0/1     ContainerCreating   0          6s      &lt;none&gt;         node3   &lt;none&gt;           &lt;none&gt;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: v1</span>
+<span class="s">kind: Pod</span>
+<span class="s">metadata:</span>
+<span class="s">  name: pod-node2</span>
+<span class="s">spec:</span>
+<span class="s">  containers:</span>
+<span class="s">  - image: nginx</span>
+<span class="s">    name: nginx</span>
+<span class="s">  nodeSelector:</span>
+<span class="s">    kubernetes.io/hostname: node2</span>
+<span class="s">EOF</span>
+<span class="c1"># pod/pod-node2 created</span>
+
+kubectl get pod -owide
+<span class="c1"># NAME        READY  STATUS    RESTARTS   AGE     IP       NODE    ... </span>
+<span class="c1"># ...</span>
+<span class="c1"># pod-node2   0/1    Pending   0          70s     &lt;none&gt;   &lt;none&gt;  ...</span>
+</code></pre></div>
+<h3 id="uncordon">Uncordon<a class="headerlink" href="#uncordon" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl uncordon node2
+<span class="c1"># node/node2 uncordoned</span>
+
+kubectl get node node2 -oyaml <span class="p">|</span> grep spec -A <span class="m">10</span>
+<span class="c1"># spec:</span>
+<span class="c1">#   podCIDR: 10.42.1.0/24</span>
+<span class="c1">#   podCIDRs:</span>
+<span class="c1">#   - 10.42.1.0/24</span>
+<span class="c1"># status:</span>
+<span class="c1">#   addresses:</span>
+<span class="c1">#   - address: 172.31.16.173</span>
+<span class="c1">#     type: InternalIP</span>
+<span class="c1">#   - address: node2</span>
+<span class="c1">#     type: Hostname</span>
+
+kubectl get node
+<span class="c1"># NAME    STATUS   ROLES    AGE   VERSION</span>
+<span class="c1"># node1   Ready    master   21h   v1.19.9</span>
+<span class="c1"># node2   Ready    &lt;none&gt;   21h   v1.19.9</span>
+<span class="c1"># node3   Ready    &lt;none&gt;   20h   v1.19.9</span>
+
+
+kubectl get pod pod-node2 -owide
+<span class="c1"># NAME        READY   STATUS    RESTARTS   AGE   IP       NODE     ...</span>
+<span class="c1"># pod-node2   1/1     Running   0          70s   &lt;none&gt;   node2   ...</span>
+
+kubectl delete pod pod-node2
+<span class="c1"># pod/pod-node2 deleted</span>
+
+kubectl delete rs rs
+</code></pre></div>
+<h3 id="drain">Drain<a class="headerlink" href="#drain" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>cat <span class="s">&lt;&lt; EOF | kubectl apply -f -</span>
+<span class="s">apiVersion: apps/v1</span>
+<span class="s">kind: Deployment</span>
+<span class="s">metadata:</span>
+<span class="s">  name: nginx</span>
+<span class="s">spec:</span>
+<span class="s">  selector:</span>
+<span class="s">    matchLabels:</span>
+<span class="s">      app: nginx</span>
+<span class="s">  replicas: 3</span>
+<span class="s">  template:</span>
+<span class="s">    metadata:</span>
+<span class="s">      labels:</span>
+<span class="s">        app: nginx</span>
+<span class="s">    spec:</span>
+<span class="s">      containers:</span>
+<span class="s">      - name: nginx</span>
+<span class="s">        image: nginx</span>
+<span class="s">EOF</span>
+<span class="c1"># deployment.apps/nginx created</span>
+
+kubectl get pod -o wide
+<span class="c1"># NAME               READY  STATUS    RESTARTS  AGE  IP           NODE</span>
+<span class="c1"># nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.0.25   node1</span>
+<span class="c1"># nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.1.2    node2</span>
+<span class="c1"># nginx-7ff78b8-xxx  1/1    Running   0         42s  10.42.4.62   node3</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># 모든 노드에 존재하는 DaemonSet은 무시합니다.</span>
+kubectl drain node3  --ignore-daemonsets
+<span class="c1"># node/node3 cordoned</span>
+<span class="c1"># evicting pod &quot;nginx-xxx&quot;</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># nginx Pod가 어떻게 동작하는지 확인합니다.</span>
+watch kubectl get pod -owide
+
+
+kubectl get node node3 -oyaml <span class="p">|</span> grep taints -A <span class="m">5</span>
+<span class="c1">#   taints:</span>
+<span class="c1">#   - effect: NoSchedule</span>
+<span class="c1">#     key: node.kubernetes.io/unschedulable</span>
+<span class="c1">#     timeAdded: &quot;2020-04-04T15:37:25Z&quot;</span>
+<span class="c1">#   unschedulable: true</span>
+<span class="c1"># status:</span>
+
+kubectl get node
+<span class="c1"># NAME    STATUS                     ROLES    AGE   VERSION</span>
+<span class="c1"># node1   Ready                      master   21h   v1.19.9</span>
+<span class="c1"># node2   Ready                      &lt;none&gt;   21h   v1.19.9</span>
+<span class="c1"># node3   Ready,SchedulingDisabled   &lt;none&gt;   20h   v1.19.9</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl uncordon node3
+<span class="c1"># node/node3 uncordoned</span>
+</code></pre></div>
+<h3 id="clean-up_2">Clean up<a class="headerlink" href="#clean-up_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>kubectl delete deploy nginx
+</code></pre></div>
+
+
+</section>
+
+</div> <!-- end of page-inner -->
+</div> <!-- end of page-wrapper -->
+
+</div> <!-- end of body-inner -->
+
+</div> <!-- end of book-body -->
+<script src="../js/main.js"></script>
+<script src="../js/gitbook.min.js"></script>
+<script src="../js/theme.min.js"></script>
+</body>
+</html>
