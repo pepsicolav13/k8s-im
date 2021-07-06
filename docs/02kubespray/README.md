@@ -85,3 +85,9 @@ ansible-playbook -i inventory/mycluster/hosts.yaml --become --become-user=root s
 
 kubectl get node -owide
 ```
+
+## Cluster Shutdown
+
+```bash
+ansible-playbook -i inventory/mycluster/hosts.yaml --become --become-user=root reset.yml
+```
