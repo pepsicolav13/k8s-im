@@ -41,7 +41,7 @@ spec:
     {{- include "mychart.selectorLabels" . | nindent 4 }}
 ```
 
-
+### helm chart 
 
 ```bash
 helm install foo ./mychart
@@ -96,7 +96,7 @@ helm delete foo
 helm list
 ```
 
-### helm repository
+### helm 외부 저장소
 
 ```bash
 helm repo add bitnami https://charts.bitnami.com/bitnami
