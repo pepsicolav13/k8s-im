@@ -127,6 +127,8 @@ helm upgrade mynginx ./nginx
 kubectl get svc
 ```
 
+외부 저장소 허브: https://artifacthub.io
+
 ### Clean up
 
 ```bash
