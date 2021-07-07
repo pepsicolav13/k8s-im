@@ -103,6 +103,7 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 helm repo list
 ```
+#### helm 외부 저장소 검색
 
 ```bash
 helm search repo bitnami
@@ -110,11 +111,13 @@ helm search repo bitnami
 helm search repo bitnami/airflow
 ```
 
+#### helm 외부 저장소 
 
 ```bash
 helm install mynginx bitnami/nginx
 ```
 
+#### helm 외부 chart download
 
 ```bash
 helm fetch --untar bitnami/nginx
