@@ -115,6 +115,7 @@ helm search repo bitnami/airflow
 
 ```bash
 helm install mynginx bitnami/nginx
+helm delete mynginx
 ```
 
 #### helm 외부 chart download
@@ -125,7 +126,7 @@ helm fetch --untar bitnami/nginx
 ls nginx/
 vim nginx/values.yaml
 # serviceType: LoadBalancer --> NodePort
-helm upgrade mynginx ./nginx
+helm install mynginx ./nginx
 
 kubectl get svc
 ```
