@@ -17,13 +17,18 @@ kubectl create ns ctrl
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 
-helm install ingress-nginx ingress-nginx/ingress-nginx -n ctrl
+helm fetch --untar ingress-nginx/ingress-nginx
+vim ingress-nginx/values.yaml
+# change hostPort to "true"
+#  hostPort:
+#    enabled: false --> true
+helm install ingress-nginx ./ingress-nginx
 ```
 
 ```bash
-kubectl get pod -n ctrl
- 
 kubectl get svc -n ctrl
+
+kubectl get pod -n ctrl -owide
 ```
 
 ```bash
